@@ -250,7 +250,7 @@ $("reset").addEventListener("click", () => {
 $("selftest").addEventListener("click", async () => {
   const tabs = await chrome.tabs.query({ url: "https://chat.deepseek.com/*" });
   const tab = tabs && tabs[0];
-  if (!tab) { $("selftest-box").innerHTML = "<div class='lvl-err'>нет вкладки DeepSeek</div>"; return; }
+  if (!tab) { $("selftest-box").innerHTML = "<div class='lvl-err'>нет вкладки LLM</div>"; return; }
   try {
     const r = await chrome.tabs.sendMessage(tab.id, { type: "selftest" });
     $("selftest-box").innerHTML = "<pre class='selftest'>" + esc(JSON.stringify(r, null, 2)) + "</pre>";

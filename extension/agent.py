@@ -393,7 +393,7 @@ class H(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
     log("START", f"v2.1.5 {ROOT} :{port}")
-    print("=== DeepSeek Agent v2.1.5 (voice-levels) ===")
+    print("=== JewAI Agent v2.1.5 (voice-levels) ===")
     print("Root:     " + str(ROOT))
     print("Endpoint: http://127.0.0.1:" + str(port))
     print("Token:    " + TOKEN)

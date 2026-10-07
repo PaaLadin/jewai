@@ -1,4 +1,4 @@
-"""install.py — установщик jewai (DeepSeek Local Agent Bridge).
+"""install.py — установщик jewai (JewAI).
 
 Разворачивает проект в произвольную папку по варианту А:
 всё (логи, runtime, chrome-профили) — внутри папки установки.
@@ -146,7 +146,7 @@ def open_install_guide(root):
 
 def main():
     print("=" * 60)
-    print(" JewAI — установка DeepSeek Local Agent Bridge")
+    print(" JewAI — установка JewAI")
     print("=" * 60)
 
     # 0. Зависимости

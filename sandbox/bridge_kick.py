@@ -57,7 +57,7 @@ with sync_playwright() as p:
     time.sleep(0.1)
     ta.fill(msg)
     time.sleep(0.8)
-    # three Enter events (DeepSeek needs all three)
+    # three Enter events (chat needs all three)
     ta.press("Enter")
     time.sleep(0.1)
     for ev in ("keydown", "keypress", "keyup"):

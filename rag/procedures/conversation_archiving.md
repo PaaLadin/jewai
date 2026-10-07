@@ -27,7 +27,7 @@
       --out logs/B/conversations/<series>_share.md \
       --port 9223 --wait 12
 
-Требования: Chrome-B запущен, залогинен в DeepSeek (для WAF).
+Требования: Chrome-B запущен, залогинен в чат LLM (для WAF).
 
 ### 3. Контроль качества (ОБЯЗАТЕЛЬНО)
 Прочитать первые строки через op=read. Проверить:

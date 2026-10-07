@@ -15,7 +15,7 @@ PROFILES = {
     "D": ("chrome-D-data", 9225, "DDAA"),
 }
 for ch, (prof, cdp, pref) in PROFILES.items():
-    lnk = DESK / ("DeepSeek %s.lnk" % ch)
+    lnk = DESK / ("JewAI %s.lnk" % ch)
     ico = ICONS / ("icon_%s.ico" % ch)
     args = ('--user-data-dir="%s" --remote-debugging-port=%d --no-first-run '
             '--no-default-browser-check --hide-crash-restore-bubble '

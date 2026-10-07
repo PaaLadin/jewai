@@ -1,4 +1,4 @@
-"""export_share.py - экспорт публичной share-страницы DeepSeek в текст.
+"""export_share.py - экспорт публичной share-страницы LLM в текст.
 
 Метод: Playwright -> CDP Chrome-B -> new_page -> share-URL -> innerText.
 Работает БЕЗ редиректа на личный чат, share-страница отдаётся публично.

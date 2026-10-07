@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "DeepSeek Agent Bridge",
+  "name": "JewAI",
   "version": "4.0.0",
-  "description": "Local bridge between DeepSeek chat and filesystem.",
+  "description": "Local bridge between LLM chat and filesystem.",
   "permissions": [
     "storage",
     "sidePanel",
@@ -57,7 +57,7 @@
     }
   ],
   "action": {
-    "default_title": "DeepSeek Bridge — open panel"
+    "default_title": "JewAI — open panel"
   },
   "side_panel": {
     "default_path": "sidepanel.html"

@@ -1,4 +1,4 @@
-"""Reload the DeepSeek chat page via CDP. Fixes stuck inflight."""
+"""Reload the LLM chat page via CDP. Fixes stuck inflight."""
 import sys, time, argparse
 from playwright.sync_api import sync_playwright
 

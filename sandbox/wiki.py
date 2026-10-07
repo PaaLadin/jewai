@@ -7,7 +7,7 @@ _skt.setdefaulttimeout(20)
 CTX = ssl.create_default_context()
 CTX.check_hostname = False
 CTX.verify_mode = ssl.CERT_NONE
-UA = "Mozilla/5.0 DeepSeekBridge/1.0"
+UA = "Mozilla/5.0 JewAI/1.0"
 _ORIG = socket.getaddrinfo
 _CACHE = {}
 

@@ -5,7 +5,7 @@ const MIN_GAP_MS = 5000;
 const SILENCE_MS = 180000;         // порог тишины бриджа (DCCA0022)
 const ALIVE_CHECK_MS = 30000;      // как часто проверять
 const ALIVE_TEXT = "Жив? Проверь TODO, если всё сделал и работы завершены и приняты - выключи watchdog!";
-const VERSION = "4.0.0-test";
+const VERSION = "4.0.0";
 
 const H = "#".repeat(3);
 const MB = H + "BEGIN" + H;

@@ -26,7 +26,8 @@ COPY_FILES = ["README.md", "ARCHITECTURE.md", "PROTOCOL.md",
               "INSTALL.md", "AGENT_SETUP.md", "CONTRIBUTING.md",
               "CHANGELOG.md", "DEVLOG.md", "LICENSE", "VERSION",
               "requirements.txt", "config.example.json",
-              ".gitignore", ".agent_token.example"]
+              ".gitignore", ".agent_token.example",
+              "jewai.ico", "social_preview.png"]
 
 # Что не копировать даже внутри dirs
 SKIP_PATTERNS = ("__pycache__", ".bak", ".pyc", ".agent_token",
@@ -277,6 +278,27 @@ def main():
     print(f"     (http://127.0.0.1:{base_port}) -> Set -> Self-test.")
     print(f"  5. Чат: http://127.0.0.1:{chat_port}/")
     print("=" * 60)
+
+    # 7. Ярлык на рабочем столе
+    if ask_yes("Создать ярлык JewAI на рабочем столе?", "y"):
+        cs = root / "launchers" / "create-shortcut.ps1"
+        if cs.exists():
+            try:
+                r = subprocess.run(
+                    ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                     "-File", str(cs)],
+                    capture_output=True, text=True, timeout=30,
+                    encoding="utf-8", errors="replace",
+                    creationflags=subprocess.CREATE_NO_WINDOW)
+                if r.returncode == 0:
+                    print("  ярлык JewAI создан на рабочем столе.")
+                else:
+                    print("  ошибка ярлыка:", (r.stderr or r.stdout)[-200:])
+            except Exception as e:
+                print("  не создать ярлык:", repr(e)[:200])
+        else:
+            print("  create-shortcut.ps1 не найден")
+
     print()
     open_install_guide(root)
     print()

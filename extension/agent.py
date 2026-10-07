@@ -176,12 +176,12 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/ping":
-            return self._j(200, {"ok": True, "root": str(ROOT), "version": "4.0.0-test",
+            return self._j(200, {"ok": True, "root": str(ROOT), "version": "4.0.0",
                                  "last_ts": _LAST_TS,
                                  "ago": round(time.time() - _LAST_TS, 1)})
         if self.path == "/health":
             return self._j(200, {"ok": True, "uptime": round(time.time() - START, 1),
-                                 "stats": STATS, "root": str(ROOT), "version": "4.0.0-test"})
+                                 "stats": STATS, "root": str(ROOT), "version": "4.0.0"})
         return self._j(404, {"error": "not found"})
 
     def do_POST(self):

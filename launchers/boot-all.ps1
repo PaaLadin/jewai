@@ -1,9 +1,8 @@
-# boot-all.ps1 — поднять jewai после перезагрузки ПК.
-# Читает config.json. Работает при N каналах от 1 до 10.
-# Все python — через pythonw + Hidden (без окон).
+﻿# boot-all.ps1 — поднять jewai после перезагрузки ПК.
+# Сгенерировано gen_launchers.py.
 $ErrorActionPreference = "Continue"
-$Root = Split-Path -Parent $PSScriptRoot
-$log = Join-Path $Root "logs\boot.log"
+$root = "C:\DeepSeek\git\jewai"
+$log = "$root\runtime\boot.log"
 
 function Log($m) {
     $line = "[$(Get-Date -Format 'HH:mm:ss')] $m"
@@ -12,102 +11,75 @@ function Log($m) {
 }
 
 Log "=== BOOT ALL ==="
-Log "root: $Root"
+Log "root: $root"
 
-# --- config ---
-$cfgFile = Join-Path $Root "config.json"
-if (-not (Test-Path $cfgFile)) {
-    Log "FAIL: config.json not found: $cfgFile"
-    exit 1
-}
-$cfg = Get-Content $cfgFile -Raw | ConvertFrom-Json
-$letters = @($cfg.letters)
-$n = $letters.Count
-Log "channels: $n ($($letters -join ', '))"
-
-# --- 1. doh_proxy ---
+# 1. doh_proxy
 $dp = Get-CimInstance Win32_Process |
   Where-Object { ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*doh_proxy*" }
 if (-not $dp) {
-    Log "start doh_proxy"
-    Start-Process pythonw -ArgumentList @("$Root\sandbox\doh_proxy.py", "--port", "9999") -WindowStyle Hidden
-    Start-Sleep -Seconds 1
+    Start-Process pythonw -ArgumentList @("$root\sandbox\doh_proxy.py", "--port", "9999") -WindowStyle Hidden
+    Log "doh_proxy started"
 } else { Log "doh_proxy up" }
 
-# --- 2. агенты (N) ---
-$agent = Join-Path $Root "extension\agent.py"
-if (-not (Test-Path $agent)) {
-    Log "FAIL: agent.py not found: $agent"
-    exit 1
-}
-foreach ($L in $letters) {
-    $port = $cfg.channels.$L.agent
-    $already = Get-CimInstance Win32_Process |
-      Where-Object { ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*agent.py*$port*" }
-    if ($already) { Log "agent $L ($port) up"; continue }
-    Start-Process pythonw -ArgumentList @($agent, "$port") -WorkingDirectory (Split-Path $agent) -WindowStyle Hidden
-    Log "agent $L started ($port)"
-    Start-Sleep -Milliseconds 300
+# 2. агенты
+$agent = "$root\extension\agent.py"
+foreach ($line in @("8766", "8767", "8768", "8769")) {
+    $parts = $line -split " "
+    $port = $parts[0]
+    Start-Process pythonw -ArgumentList @($agent, "$port") -WorkingDirectory "$root\extension" -WindowStyle Hidden
+    Log "agent started ($port)"
 }
 Start-Sleep -Seconds 3
 
-# --- 3. Chrome (N) ---
-foreach ($L in $letters) {
-    $cdp = $cfg.channels.$L.cdp
+# 3. Chrome
+$chrome = "$env:PROGRAMFILES\Google\Chrome\Application\chrome.exe"
+foreach ($line in @("A 9222", "B 9223", "C 9224", "D 9225")) {
+    $parts = $line -split " "
+    $L = $parts[0]
+    $cdp = $parts[1]
     $try = $null
     try { $try = Invoke-RestMethod "http://127.0.0.1:$cdp/json/version" -TimeoutSec 3 } catch {}
     if ($try) { Log "CDP $L ($cdp) up"; continue }
-
-    $chrome = "$env:PROGRAMFILES\Google\Chrome\Application\chrome.exe"
-    $prof = "$Root\chrome-$L-data"
-    $ext = "$Root\extension"
+    $prof = "$root\chrome-$L-data"
     if (-not (Test-Path $prof)) { New-Item -ItemType Directory -Path $prof -Force | Out-Null }
-    $first = -not (Test-Path (Join-Path $prof "Default\Preferences"))
-    $args = @(
+    $flags = @(
         "--user-data-dir=$prof",
         "--remote-debugging-port=$cdp",
-        "--load-extension=$ext",
+        "--load-extension=$root\extension",
         "--proxy-server=127.0.0.1:9999",
-        "--disable-backgrounding-occluded-windows",
-        "--disable-renderer-backgrounding",
-        "--disable-background-timer-throttling",
         "--no-first-run",
         "--no-default-browser-check",
         "--restore-last-session"
     )
-    if ($first) { $args += "https://chat.deepseek.com/" }
-    Start-Process -FilePath $chrome -ArgumentList $args
+    Start-Process -FilePath $chrome -ArgumentList $flags
     Log "Chrome $L started (CDP $cdp)"
     Start-Sleep -Seconds 2
 }
 Start-Sleep -Seconds 6
 
-# --- 4. сервер чата 8770 ---
+# 4. сервер чата
 $srv = Get-CimInstance Win32_Process |
   Where-Object { ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*council_chat*server.py*" }
 if (-not $srv) {
-    Start-Process pythonw -ArgumentList @("$Root\sandbox\council_chat\server.py") -WorkingDirectory "$Root\sandbox\council_chat" -WindowStyle Hidden
+    Start-Process pythonw -ArgumentList @("$root\sandbox\council_chat\server.py") -WorkingDirectory "$root\sandbox\council_chat" -WindowStyle Hidden
     Log "server 8770 started"
-} else { Log "8770 up" }
+} else { Log "chat up" }
 Start-Sleep -Seconds 5
 
-# --- 5. health ---
-foreach ($L in $letters) {
-    $port = $cfg.channels.$L.agent
+# 5. health
+foreach ($line in @("8766", "8767", "8768", "8769")) {
+    $port = ($line -split " ")[0]
     try {
         $r = Invoke-RestMethod "http://127.0.0.1:$port/ping" -TimeoutSec 4
-        Log "agent $L ($port) OK: $($r.version)"
-    } catch { Log "agent $L ($port) DOWN" }
+        Log "agent $port OK: $($r.version)"
+    } catch { Log "agent $port DOWN" }
 }
-foreach ($L in $letters) {
-    $cdp = $cfg.channels.$L.cdp
+foreach ($line in @("A 9222", "B 9223", "C 9224", "D 9225")) {
+    $parts = $line -split " "
+    $cdp = $parts[1]
     try {
         $v = Invoke-RestMethod "http://127.0.0.1:$cdp/json/version" -TimeoutSec 4
-        Log "cdp $L ($cdp) OK: $($v.Browser)"
-    } catch { Log "cdp $L ($cdp) DOWN" }
+        Log "cdp $cdp OK"
+    } catch { Log "cdp $cdp DOWN" }
 }
-$chat = $cfg.chat_port
-if (-not $chat) { $chat = 8770 }
-try { $s = Invoke-RestMethod "http://127.0.0.1:$chat/api/health" -TimeoutSec 40; Log "chat $chat OK" } catch { Log "chat $chat DOWN" }
-
 Log "=== BOOT DONE ==="

@@ -112,7 +112,7 @@ if (Test-Path $agent) {{
 
 Write-Host "{L}: agent {agent_port}, CDP {cdp_port}"
 """
-        (ld / f"start-{L}.ps1").write_text(ps, encoding="utf-8")
+        (ld / f"start-{L}.ps1").write_text(ps, encoding="utf-8-sig")
         start_lines.append(f"  .\\start-{L}.ps1")
 
 
@@ -146,7 +146,7 @@ Write-Host "{L}: agent {agent_port}, CDP {cdp_port}"
         "\n"
         "Write-Host \"Остановлено.\"\n"
     )
-    (ld / "stop-all.ps1").write_text(stop_all, encoding="utf-8")
+    (ld / "stop-all.ps1").write_text(stop_all, encoding="utf-8-sig")
 
     # create-shortcut.ps1 — ярлык на boot-all.ps1
     shortcut = (
@@ -165,13 +165,13 @@ Write-Host "{L}: agent {agent_port}, CDP {cdp_port}"
         "$sc.Save()\n"
         "Write-Host \"Ярлык создан: $lnk\"\n"
     )
-    (ld / "create-shortcut.ps1").write_text(shortcut, encoding="utf-8")
+    (ld / "create-shortcut.ps1").write_text(shortcut, encoding="utf-8-sig")
 
 
     # boot-all.ps1 — полный подъём для ярлыка / автозагрузки.
-    agent_lines = " ".join(f'"{port_base + i}"' for i in range(n))
-    chrome_lines = " ".join(f'"{L} {cdp_base + i}"'
-                             for i, L in enumerate(LETTERS[:n]))
+    agent_lines = ", ".join(f'"{port_base + i}"' for i in range(n))
+    chrome_lines = ", ".join(f'"{L} {cdp_base + i}"'
+                               for i, L in enumerate(LETTERS[:n]))
     boot = f"""# boot-all.ps1 — поднять jewai после перезагрузки ПК.
 # Сгенерировано gen_launchers.py.
 $ErrorActionPreference = "Continue"
@@ -258,7 +258,7 @@ foreach ($line in @({chrome_lines})) {{
 }}
 Log "=== BOOT DONE ==="
 """
-    (ld / "boot-all.ps1").write_text(boot, encoding="utf-8")
+    (ld / "boot-all.ps1").write_text(boot, encoding="utf-8-sig")
 
     return (["boot-all.ps1", "stop-all.ps1", "create-shortcut.ps1"]
             + [f"start-{L}.ps1" for L in LETTERS[:n]])

@@ -1,0 +1,51 @@
+# Секреты и токены
+.agent_token
+.env
+.secrets/
+.signup_data
+notify.stop
+notify.txt
+notify_phrase.txt
+
+# Chrome-профили (локальные)
+chrome-*-data/
+chrome-cdp-test/
+
+# Логи и heartbeat-файлы
+*.log
+*.heartbeat
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Бэкапы
+*.bak
+*.bak_*
+backups/
+
+# Локальные архивы и «мертвые» ветки
+_old/
+archive/
+_clean/
+_ext_flag_test/
+
+# Подпроекты (вне публичного ядра)
+game/
+sandbox/platformer/
+sandbox/recipes/
+
+# Личные материалы
+council/persona/
+council/threads/
+logs/*/conversations/
+logs/*/sessions/
+logs/roadmap_state/
+
+# IDE
+.vscode/
+.idea/
+*.swp

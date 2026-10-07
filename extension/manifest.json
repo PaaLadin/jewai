@@ -1,0 +1,65 @@
+{
+  "manifest_version": 3,
+  "name": "DeepSeek Agent Bridge",
+  "version": "4.0.0",
+  "description": "Local bridge between DeepSeek chat and filesystem.",
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://chat.deepseek.com/*",
+    "http://127.0.0.1:8760/*",
+    "http://127.0.0.1:8761/*",
+    "http://127.0.0.1:8762/*",
+    "http://127.0.0.1:8763/*",
+    "http://127.0.0.1:8764/*",
+    "http://127.0.0.1:8765/*",
+    "http://127.0.0.1:8766/*",
+    "http://127.0.0.1:8767/*",
+    "http://127.0.0.1:8768/*",
+    "http://127.0.0.1:8769/*",
+    "http://127.0.0.1:8770/*",
+    "http://127.0.0.1:8771/*",
+    "http://127.0.0.1:8772/*",
+    "http://127.0.0.1:8773/*",
+    "http://127.0.0.1:8774/*",
+    "http://127.0.0.1:8775/*",
+    "http://127.0.0.1:8776/*",
+    "http://127.0.0.1:8777/*",
+    "http://127.0.0.1:8778/*",
+    "http://127.0.0.1:8779/*",
+    "http://127.0.0.1:8780/*",
+    "http://127.0.0.1:8781/*",
+    "http://127.0.0.1:8782/*",
+    "http://127.0.0.1:8783/*",
+    "http://127.0.0.1:8784/*",
+    "http://127.0.0.1:8785/*",
+    "http://127.0.0.1:8786/*",
+    "http://127.0.0.1:8787/*",
+    "http://127.0.0.1:8788/*",
+    "http://127.0.0.1:8789/*",
+    "http://127.0.0.1:8790/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.deepseek.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "DeepSeek Bridge — open panel"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}

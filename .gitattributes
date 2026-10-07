@@ -1,0 +1,14 @@
+# Нормализация переводов строк
+* text=auto eol=lf
+
+# Windows-скрипты — CRLF
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Бинарные
+*.ico binary
+*.png binary
+*.jpg binary
+*.gif binary
+*.woff binary
+*.woff2 binary

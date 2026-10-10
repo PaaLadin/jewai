@@ -78,8 +78,14 @@ def copy_tree(src: Path, dst: Path):
         rel = item.relative_to(src)
         t = dst / rel
         t.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(item, t)
-        n += 1
+        try:
+            shutil.copy2(item, t)
+            n += 1
+        except shutil.SameFileError:
+            # файл уже на месте — норма для переустановки в ту же папку
+            n += 1
+        except Exception as e:
+            print(f"    SKIP {rel}: {e!r}")
     return n
 
 
@@ -175,6 +181,19 @@ def main():
         print("Отменено.")
         return
 
+    # Защита: если root == HERE (установка "на месте")
+    try:
+        same = root.resolve() == HERE.resolve()
+    except Exception:
+        same = False
+    if same:
+        print()
+        print("  ВНИМАНИЕ: папка установки совпадает с папкой,")
+        print("  где лежит install.py. Это режим 'установка на месте'.")
+        print("  Файлы не копируются, только создаются config.json,")
+        print("  .agent_token, launchers/.")
+        print()
+
     root.mkdir(parents=True, exist_ok=True)
 
     # 1. Структура
@@ -185,9 +204,11 @@ def main():
     for d in dirs:
         (root / d).mkdir(parents=True, exist_ok=True)
 
-    # 2. Копирование
+    # 2. Копирование (пропустить, если root == HERE)
     total = 0
-    for sub in COPY_DIRS:
+    if same:
+        print("  Копирование пропущено (root == HERE).")
+    for sub in ([] if same else COPY_DIRS):
         s = HERE / sub
         if not s.exists():
             print(f"  SKIP {sub} (не найдено в исходнике)")
@@ -196,12 +217,18 @@ def main():
         total += cnt
         print(f"  + {sub}: {cnt} файлов")
 
-    for f in COPY_FILES:
-        s = HERE / f
-        if s.exists():
-            shutil.copy2(s, root / f)
-            total += 1
-    print(f"  + корневые файлы: {sum(1 for f in COPY_FILES if (HERE/f).exists())}")
+    if not same:
+        for f in COPY_FILES:
+            s = HERE / f
+            if s.exists():
+                try:
+                    shutil.copy2(s, root / f)
+                    total += 1
+                except shutil.SameFileError:
+                    total += 1
+        print(f"  + корневые файлы: {sum(1 for f in COPY_FILES if (HERE/f).exists())}")
+    else:
+        print("  + корневые файлы: пропущено")
     print(f"  Всего скопировано: {total}")
 
     # 3. Папки агентов (logs/<L>/, chrome-<L>-data/)
@@ -328,8 +355,10 @@ def main():
     print(f"  2. Запусти: {root}\\launchers\\boot-all.ps1")
     print(f"  3. Открой в Chrome: chrome://extensions -> Load unpacked ->")
     print(f"     {root}\\extension")
-    print(f"  4. В сайдпанели задай Token (из .agent_token) и Agent URL")
-    print(f"     (http://127.0.0.1:{base_port}) -> Set -> Self-test.")
+    print(f"  4. В сайдпанели задай Token (из .agent_token).")
+    print(f"     Agent URL: http://127.0.0.1:{base_port}")
+    print(f"     (Панель сама найдёт агента, если порт отличается.)")
+    print(f"     -> Set -> Self-test.")
     print(f"  5. Чат: http://127.0.0.1:{chat_port}/")
     print("=" * 60)
     print()

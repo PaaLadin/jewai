@@ -4,6 +4,34 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [1.5.4] — 2026-10-11
+
+### Fixed
+
+**Порты: панель не находила агента на 8760.**
+install.py ставил порт 8760 (новый дефолт), а расширение
+было захардкожено на 8766 (старое значение). Пользователь
+получал `agent bad (Failed to fetch)`.
+
+- `extension/background.js`: дефолт `agentUrl` 8766 -> 8760.
+- `extension/background.js`: автоопределение порта в heartbeat
+  — при провале ping перебор 8760-8790, найденный порт
+  сохраняется в storage, панель обновляется сама.
+- `extension/agent.py`: дефолтный порт (без argv) читается
+  из config.json, fallback 8766.
+- `sandbox/svc.py`: AGENT_PORT/CDP_PORT из config.json.
+- `sandbox/watchdog.py`: DEFAULT_URL из config.json.
+  Попутно: добавлен пропущенный `import subprocess`.
+- `sandbox/autorestart.py`: FALLBACK из config.json.
+- `install.py`: в финале явно указан Agent URL с реальным
+  портом + примечание, что панель найдёт сама.
+
+### Причина
+
+Фаза 1 портирования убрала хардкод **путей**, но **порты**
+остались хардкодом. Никто не проверял установку со сменённым
+портом. Проверено: тестовая установка на 8760, RC 0.
+
 ## [1.5.3] — 2026-10-11
 
 ### Fixed

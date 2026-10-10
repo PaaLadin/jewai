@@ -1,5 +1,5 @@
 """Watchdog для agent.py. Пишет лог и, при N подряд фейлах, ALERT.json."""
-import sys, time, json, argparse, urllib.request
+import sys, time, json, argparse, subprocess, urllib.request
 from pathlib import Path
 from datetime import datetime
 
@@ -14,7 +14,20 @@ def _nw_flags():
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
                                        "council_chat") else _HERE
-DEFAULT_URL = "http://127.0.0.1:8766/ping"
+# URL из config.json (канал A), хардкод - fallback.
+def _default_url():
+    cfg = ROOT / "config.json"
+    if cfg.exists():
+        try:
+            d = json.loads(cfg.read_text(encoding="utf-8"))
+            ch = d.get("channels", {})
+            if "A" in ch and isinstance(ch["A"], dict) and "agent" in ch["A"]:
+                return "http://127.0.0.1:%d/ping" % int(ch["A"]["agent"])
+        except Exception:
+            pass
+    return "http://127.0.0.1:8766/ping"
+
+DEFAULT_URL = _default_url()
 DEFAULT_LOG = ROOT / "watchdog.log"
 DEFAULT_ALERT = ROOT / "ALERT.json"
 TOKEN_FILE = ROOT / ".agent_token"

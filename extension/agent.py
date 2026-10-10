@@ -391,7 +391,22 @@ class H(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
+    if len(sys.argv) > 1:
+        port = int(sys.argv[1])
+    else:
+        # дефолт из config.json (канал A), fallback 8766
+        port = 8766
+        try:
+            import json
+            from pathlib import Path as _P
+            _cfg = _P(__file__).resolve().parent.parent / "config.json"
+            if _cfg.exists():
+                _d = json.loads(_cfg.read_text(encoding="utf-8"))
+                _ch = _d.get("channels", {})
+                if "A" in _ch and "agent" in _ch["A"]:
+                    port = int(_ch["A"]["agent"])
+        except Exception:
+            pass
     log("START", f"v2.1.5 {ROOT} :{port}")
     print("=== JewAI Agent v2.1.5 (voice-levels) ===")
     print("Root:     " + str(ROOT))

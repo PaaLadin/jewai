@@ -33,8 +33,27 @@ SVC_DIR = ROOT / "logs" / "svc"
 SVC_DIR.mkdir(parents=True, exist_ok=True)
 LOG = ROOT / "svc.log"
 
-AGENT_PORT = {"A": 8766, "B": 8767, "C": 8768, "D": 8769}
-CDP_PORT = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+# Порты: читаются из config.json, хардкод - fallback.
+def _load_ports():
+    agent = {"A": 8766, "B": 8767, "C": 8768, "D": 8769}
+    cdp = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+    cfg_file = ROOT / "config.json"
+    if not cfg_file.exists():
+        return agent, cdp
+    try:
+        d = json.loads(cfg_file.read_text(encoding="utf-8"))
+        ch = d.get("channels", {})
+        for k, v in ch.items():
+            if isinstance(v, dict):
+                if "agent" in v:
+                    agent[k] = int(v["agent"])
+                if "cdp" in v:
+                    cdp[k] = int(v["cdp"])
+    except Exception:
+        pass
+    return agent, cdp
+
+AGENT_PORT, CDP_PORT = _load_ports()
 
 
 def log(msg):

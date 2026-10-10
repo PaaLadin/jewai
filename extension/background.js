@@ -1,5 +1,5 @@
 const DEFAULTS = {
-  token: "", agentUrl: "http://127.0.0.1:8766",
+  token: "", agentUrl: "http://127.0.0.1:8760",
   paused: false, autoConfirm: false,
   ledger: [], lastId: "", lastIds: {}, pending: null,
   status: { text: "idle", level: "info", ts: Date.now() },
@@ -16,6 +16,17 @@ const DEFAULTS = {
 };
 
 const get = async () => ({ ...DEFAULTS, ...(await chrome.storage.local.get(DEFAULTS)) });
+
+// Автоопределение живого агента: перебор портов 8760-8790.
+async function detectAgentPort() {
+  for (let p = 8760; p <= 8790; p++) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${p}/ping`, { method: "GET" });
+      if (r.ok) return p;
+    } catch (e) { /* порт молчит — дальше */ }
+  }
+  return null;
+}
 const set = async (p) => chrome.storage.local.set(p);
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -116,8 +127,21 @@ async function pushLedger(entry) {
 async function heartbeat() {
   const s = await get();
   if (!s.token) return;
-  const r = await fetchAgent("/ping", null, "GET");
-  const ok = r && r.ok;
+  let r = await fetchAgent("/ping", null, "GET");
+  let ok = r && r.ok;
+
+  // Автоопределение порта: если не отвечает — перебрать 8760-8790.
+  if (!ok) {
+    const found = await detectAgentPort();
+    if (found && String(s.agentUrl) !== `http://127.0.0.1:${found}`) {
+      await set({ agentUrl: `http://127.0.0.1:${found}` });
+      r = await fetchAgent("/ping", null, "GET");
+      ok = r && r.ok;
+      if (ok) {
+        await status(`Агент найден на порту ${found}`, "ok");
+      }
+    }
+  }
   const prevFails = (s.health && s.health.fails) || 0;
   const fails = ok ? 0 : prevFails + 1;
   const health = {

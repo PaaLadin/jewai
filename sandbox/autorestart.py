@@ -25,14 +25,25 @@ SVC_DIR = ROOT / "logs" / "svc"
 PATHS_CACHE = SVC_DIR / "agent_paths.json"
 PY = _sys.executable
 
-# порт -> путь agent.py (фолбэк)
-# Портирование: пути к agent.py — от ROOT, не от C:\
-FALLBACK = {
-    "8766": str(ROOT / "extension" / "agent.py"),
-    "8767": str(ROOT / "extension" / "agent.py"),
-    "8768": str(ROOT / "extension" / "agent.py"),
-    "8769": str(ROOT / "extension" / "agent.py"),
-}
+# порт -> путь agent.py (фолбэк). Порты из config.json.
+def _load_fallback():
+    fb = {}
+    cfg = ROOT / "config.json"
+    agent_path = str(ROOT / "extension" / "agent.py")
+    if cfg.exists():
+        try:
+            d = json.loads(cfg.read_text(encoding="utf-8"))
+            for k, v in d.get("channels", {}).items():
+                if isinstance(v, dict) and "agent" in v:
+                    fb[str(v["agent"])] = agent_path
+        except Exception:
+            pass
+    if not fb:
+        fb = {"8766": agent_path, "8767": agent_path,
+              "8768": agent_path, "8769": agent_path}
+    return fb
+
+FALLBACK = _load_fallback()
 
 
 def _nw():

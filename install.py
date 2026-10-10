@@ -19,7 +19,8 @@ HERE = Path(__file__).resolve().parent
 
 # Что копировать из исходника в установку (целиком)
 COPY_DIRS = ["sandbox", "extension", "launchers", "emergency",
-             "rag", "templates", "mail_bot", "messaging"]
+             "rag", "templates", "mail_bot"]
+# messaging/ копируется отдельно (опционально)
 
 # Что копировать из корня (по файлам)
 COPY_FILES = ["README.md", "ARCHITECTURE.md", "PROTOCOL.md",
@@ -242,6 +243,8 @@ def main():
             }
             for i, L in enumerate(LETTERS[:n])
         },
+        "mail_bot": {"enabled": mail_bot_enabled},
+        "messaging": {"included": messaging_included},
     }
     if cfg_file.exists():
         if ask_yes("config.json уже есть. Перезаписать?", "n"):
@@ -257,9 +260,19 @@ def main():
             encoding="utf-8")
         print("  config.json — создан")
 
-    # 5b. Почта (mail_bot)
+    # 5b. Опциональные подпроекты
     print()
-    smtp_configured = False
+    mail_bot_enabled = False
+    messaging_included = ask_yes(
+        "Скопировать справочный подпроект messaging/?", "n")
+    if messaging_included:
+        s = HERE / "messaging"
+        if s.exists():
+            cnt = copy_tree(s, root / "messaging")
+            print(f"  + messaging/: {cnt} файлов")
+    else:
+        print("  messaging/ — пропущен (не влияет на работу)")
+
     if ask_yes("Подключить приём задач по почте (mail_bot)?", "n"):
         print()
         print("  Нужен пароль приложения Яндекс (или другого SMTP).")
@@ -287,8 +300,8 @@ def main():
             wl_file.write_text(
                 json.dumps(wl, ensure_ascii=False, indent=2),
                 encoding="utf-8")
-            print("  mail_bot/whitelist.json — создан (whitelist=%s)" % smtp_sender)
-            smtp_configured = True
+            print("  mail_bot/whitelist.json — создан (%s)" % smtp_sender)
+            mail_bot_enabled = True
         else:
             print("  пропущено — .smtp_token не создан, настрой вручную")
     else:
@@ -326,10 +339,12 @@ def main():
     print(f"  - Почта (mail_bot): {root}\\mail_bot\\README.md")
     print(f"  - Маркеры и обмен:  {root}\\messaging\\README.md")
     print(f"  - Канон:            {root}\\algorithms\\marker_protocol.md")
-    if smtp_configured:
-        print("  - Почта настроена. Автозапуск mail_bot уже в boot-all.ps1.")
+    if mail_bot_enabled:
+        print("  - Почта настроена. Автозапуск mail_bot в boot-all.ps1.")
     else:
         print("  - Почта не настроена. Включи вручную по mail_bot/README.md.")
+    if messaging_included:
+        print("  - messaging/ скопирован (справочно).")
 
     # 7. Ярлык на рабочем столе
     if ask_yes("Создать ярлык JewAI на рабочем столе?", "y"):

@@ -30,7 +30,23 @@ SVC_DIR = ROOT / "logs" / "svc"
 SVC_DIR.mkdir(parents=True, exist_ok=True)
 LOG = ROOT / "logs" / "runtime" / "svc.log"
 
-AGENT_PORT = {"A": 8766, "B": 8767, "C": 8768, "D": 8769}
+def _load_ports():
+    import json as _j
+    a = {"A": 8766, "B": 8767, "C": 8768, "D": 8769}
+    c = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+    cf = ROOT / "config.json"
+    if cf.exists():
+        try:
+            d = _j.loads(cf.read_text(encoding="utf-8"))
+            for k, v in d.get("channels", {}).items():
+                if isinstance(v, dict):
+                    if "agent" in v: a[k] = int(v["agent"])
+                    if "cdp" in v: c[k] = int(v["cdp"])
+        except Exception:
+            pass
+    return a, c
+
+AGENT_PORT, CDP_PORT = _load_ports()
 CDP_PORT = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
 
 

@@ -143,6 +143,20 @@ recipient, password). В git не попадает, шаблон —
 
     python sandbox/send_email.py --file <путь> "Тема"
 
+### Приём задач по почте (mail_bot)
+
+Подпроект `mail_bot/` — опрос INBOX личного Яндекс-ящика.
+Subject письма начинается с маркера адресата
+`[A]/[B]/[C]/[D]/[ALL]` — задача летит киком агенту или
+в общий чат 8770. Whitelist: `uncle@naben.ru`.
+Адаптивный интервал: 5 мин база, 1 мин boost на 10 мин
+после письма оператора. Автоответ «Принято» на адрес
+отправителя.
+
+Запуск: `python mail_bot/mail_bot.py --loop`
+Разово: `python mail_bot/mail_bot.py --once`
+Тесты: `python mail_bot/test_mailbot.py` (27/27).
+Процедура: `rag/procedures/mail_bot.md`.
 ### Метрика переполнения сессии
 
 Токены игнорируются. Единственная метрика — `cmds_from_start`

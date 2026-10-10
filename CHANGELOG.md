@@ -4,6 +4,36 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [1.3.0] — 2026-10-10
+
+### Added
+
+- Подпроект `mail_bot/` — приём задач агентам по почте.
+  IMAP-опрос личного Яндекс-ящика, парсинг Subject
+  `[A]/[B]/[C]/[D]/[ALL]`, роутинг киками.
+- `mail_bot/mail_bot.py` — скрипт-слушатель.
+- `mail_bot/test_mailbot.py` — тесты (27/27 PASS).
+- `mail_bot/README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`,
+  `ROADMAP.md`, `TODO.md`.
+- `rag/procedures/mail_bot.md` — процедура.
+- Адаптивный интервал: 5 мин база, 1 мин boost 10 мин.
+- Автоответ оператору на адрес отправителя.
+- Очередь отложенных `logs/queue.jsonl` (кик не прошёл).
+- IMAP retry 3x.
+
+### Changed
+
+- VERSION -> 1.3.0.
+- Whitelist mail_bot сужен до `uncle@naben.ru`
+  (задача оператора).
+
+### Fixed
+
+- mail_bot `--once` возвращал dict -> exit code 1.
+  Теперь return 0.
+- `reply_to_operator` отвечал на свой ящик, а не на адрес
+  отправителя. Исправлено.
+
 ## [1.2.0] — 2026-10-10
 
 Сессия 8A (Аркадий). Маркеры, email, персональные чаты.

@@ -43,15 +43,22 @@ BOOST_INTERVAL = 60     # 1 мин в boost
 BOOST_DURATION = 600    # 10 мин boost после письма оператора
 
 # Кому отвечаем на почту
-OPERATOR_EMAILS = {"uncle@naben.ru", "paaladin@yandex.ru",
-                   "paaladin@paaladin.ru", "ai@paaladin.ru"}
+# Whitelist и список операторов читаются из whitelist.json.
+# Если файла нет — падаем в дефолт (ничего не принимаем).
+WHITELIST_FILE = Path(__file__).resolve().parent / "whitelist.json"
 
-# Whitelist отправителей команд. Задача оператора 2026-10-10:
-# принимать команды ТОЛЬКО с uncle@naben.ru.
-# Откат: добавить сюда нужные адреса.
-WHITELIST = {
-    "uncle@naben.ru",
-}
+def _load_whitelist():
+    if not WHITELIST_FILE.exists():
+        return set(), set()
+    try:
+        data = json.loads(WHITELIST_FILE.read_text(encoding="utf-8"))
+    except Exception:
+        return set(), set()
+    wl = {a.lower() for a in data.get("whitelist", []) if a}
+    op = {a.lower() for a in data.get("operator_emails", []) if a}
+    return wl, op
+
+WHITELIST, OPERATOR_EMAILS = _load_whitelist()
 
 # Маркер адресата в начале Subject: [A], [B], [C], [D], [ALL]
 RE_SUBJ = re.compile(r"^\s*\[([ABCD]|ALL|ALLCHANNELS)\]\s*(.*)$", re.IGNORECASE)
@@ -173,7 +180,27 @@ def process_mail(m, uid, token):
     log("uid=%s from=%s subj=%s" % (uid, sender_email, subject[:80]))
     if sender_email not in WHITELIST:
         log("SKIP (not in whitelist): %s" % sender_email); return
-    msubj = RE_SUBJ.match(subject)
+    # Игнор автоответов (наш собственный ответ + защита X-MailBot)
+    if "[AUTO]" in subject.upper():
+        log("SKIP ([AUTO] marker): %s" % subject[:60])
+        return False
+    if (msg.get("X-MailBot") or "").lower() == "auto-reply":
+        log("SKIP (X-MailBot header)")
+        return False
+    # Опциональный префикс Re:/Fwd: пропускаем — оператор может
+    # отвечать на письмо, задача всё равно в теле/теме.
+    subj_clean = subject.strip()
+    prefixes = ("re:", "re :", "fw:", "fwd:", "пере:", "на:", "[auto]")
+    changed = True
+    while changed:
+        changed = False
+        low = subj_clean.lower()
+        for pref in prefixes:
+            if low.startswith(pref):
+                subj_clean = subj_clean[len(pref):].strip()
+                changed = True
+                break
+    msubj = RE_SUBJ.match(subj_clean)
     if not msubj:
         log("SKIP (no target marker in subject)"); return
     target = msubj.group(1).upper()
@@ -199,9 +226,10 @@ def reply_to_operator(orig_subject, target, body_snippet, reply_to):
         body = ("Принято.\n\nЦелевой канал: [%s]\nТема: %s\n\nФрагмент:\n%s\n"
                 % (target, orig_subject, body_snippet[:300]))
         msg = MIMEText(body, "plain", "utf-8")
-        msg["Subject"] = "Re: " + orig_subject
+        msg["Subject"] = "[AUTO] Re: " + orig_subject
         msg["From"] = tok["sender"]
         msg["To"] = reply_to
+        msg["X-MailBot"] = "auto-reply"
         with smtplib.SMTP_SSL(tok["host"], int(tok["port"]), timeout=20) as s:
             s.login(tok["sender"], tok["password"])
             s.sendmail(tok["sender"], [reply_to], msg.as_string())

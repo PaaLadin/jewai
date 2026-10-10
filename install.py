@@ -19,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 
 # Что копировать из исходника в установку (целиком)
 COPY_DIRS = ["sandbox", "extension", "launchers", "emergency",
-             "rag", "templates"]
+             "rag", "templates", "mail_bot", "messaging"]
 
 # Что копировать из корня (по файлам)
 COPY_FILES = ["README.md", "ARCHITECTURE.md", "PROTOCOL.md",
@@ -27,6 +27,7 @@ COPY_FILES = ["README.md", "ARCHITECTURE.md", "PROTOCOL.md",
               "CHANGELOG.md", "DEVLOG.md", "LICENSE", "VERSION",
               "requirements.txt", "config.example.json",
               ".gitignore", ".agent_token.example",
+              ".smtp_token.example",
               "jewai.ico", "social_preview.png"]
 
 # Что не копировать даже внутри dirs
@@ -256,6 +257,46 @@ def main():
             encoding="utf-8")
         print("  config.json — создан")
 
+    # 5b. Почта (mail_bot)
+    print()
+    smtp_configured = False
+    if ask_yes("Подключить приём задач по почте (mail_bot)?", "n"):
+        print()
+        print("  Нужен пароль приложения Яндекс (или другого SMTP).")
+        print("  Создать: id.yandex.ru/security/app-passwords")
+        print("  Подробнее: mail_bot/README.md")
+        print()
+        smtp_host = ask("SMTP-хост", "smtp.yandex.ru")
+        smtp_port = ask("SMTP-порт (465 SSL / 587 STARTTLS)", "465")
+        smtp_sender = ask("Адрес ящика (отправитель и логин)", "")
+        smtp_recipient = ask("Адрес для ответов (кому отвечать)", smtp_sender)
+        smtp_password = ask("Пароль приложения", "")
+        if smtp_sender and smtp_password:
+            (root / ".smtp_token").write_text(
+                "\n".join([smtp_host, smtp_port, smtp_sender,
+                            smtp_recipient, smtp_password]) + "\n",
+                encoding="utf-8")
+            print("  .smtp_token — создан")
+            wl_file = root / "mail_bot" / "whitelist.json"
+            wl_file.parent.mkdir(parents=True, exist_ok=True)
+            wl = {
+                "_comment": "Адреса, с которых принимаются команды.",
+                "whitelist": [smtp_sender],
+                "operator_emails": [smtp_sender],
+            }
+            wl_file.write_text(
+                json.dumps(wl, ensure_ascii=False, indent=2),
+                encoding="utf-8")
+            print("  mail_bot/whitelist.json — создан (whitelist=%s)" % smtp_sender)
+            smtp_configured = True
+        else:
+            print("  пропущено — .smtp_token не создан, настрой вручную")
+    else:
+        print("  mail_bot не активирован. Включить позже:")
+        print("  1. Скопируй .smtp_token.example -> .smtp_token, заполни.")
+        print("  2. Заполни mail_bot/whitelist.json.")
+        print("  3. Читай mail_bot/README.md.")
+
     # 6. launchers
     sys.path.insert(0, str(root / "launchers"))
     try:
@@ -278,6 +319,17 @@ def main():
     print(f"     (http://127.0.0.1:{base_port}) -> Set -> Self-test.")
     print(f"  5. Чат: http://127.0.0.1:{chat_port}/")
     print("=" * 60)
+    print()
+    print(" Полезное:")
+    print(f"  - Обзор проекта:    {root}\\README.md")
+    print(f"  - Установка:        {root}\\INSTALL.md")
+    print(f"  - Почта (mail_bot): {root}\\mail_bot\\README.md")
+    print(f"  - Маркеры и обмен:  {root}\\messaging\\README.md")
+    print(f"  - Канон:            {root}\\algorithms\\marker_protocol.md")
+    if smtp_configured:
+        print("  - Почта настроена. Автозапуск mail_bot уже в boot-all.ps1.")
+    else:
+        print("  - Почта не настроена. Включи вручную по mail_bot/README.md.")
 
     # 7. Ярлык на рабочем столе
     if ask_yes("Создать ярлык JewAI на рабочем столе?", "y"):

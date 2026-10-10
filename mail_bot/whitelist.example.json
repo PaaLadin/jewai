@@ -1,0 +1,10 @@
+{
+  "_comment": "Адреса, с которых принимаются команды. Скопируй в whitelist.json и заполни своими.",
+  "_comment2": "Если файла нет — используется пустой список, никакие команды не проходят.",
+  "whitelist": [
+    "operator@example.com"
+  ],
+  "operator_emails": [
+    "operator@example.com"
+  ]
+}

@@ -240,6 +240,22 @@ if (-not $srv) {{
 }} else {{ Log "chat up" }}
 Start-Sleep -Seconds 5
 
+# 4b. mail_bot (приём задач по почте)
+$mb = Get-CimInstance Win32_Process |
+  Where-Object {{ ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*mail_bot*" }}
+$mbScript = "$root\\mail_bot\\mail_bot.py"
+if ($mb) {{
+    Log "mail_bot up"
+}} elseif (-not (Test-Path $mbScript)) {{
+    Log "mail_bot skipped (script not found)"
+}} elseif (-not (Test-Path "$root\\.smtp_token")) {{
+    Log "mail_bot skipped (no .smtp_token)"
+}} else {{
+    Start-Process pythonw -ArgumentList @($mbScript, "--loop") -WorkingDirectory (Split-Path $mbScript) -WindowStyle Hidden
+    Log "mail_bot started (--loop)"
+}}
+Start-Sleep -Seconds 2
+
 # 5. health
 foreach ($line in @({agent_lines})) {{
     $port = ($line -split " ")[0]

@@ -1,0 +1,6 @@
+# SMTP-токен. 5 строк: host, port, sender, recipient, password
+smtp.example.com
+465
+sender@example.com
+recipient@example.com
+APP_PASSWORD_HERE

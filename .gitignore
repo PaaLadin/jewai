@@ -7,8 +7,9 @@ notify.stop
 notify.txt
 notify_phrase.txt
 
-# Chrome-профили (локальные)
-chrome-*-data/
+# Chrome-профили (локальные). Содержимое не трекается, .gitkeep виден
+chrome-*-data/*
+!chrome-*-data/.gitkeep
 chrome-cdp-test/
 
 # Логи и heartbeat-файлы
@@ -49,3 +50,6 @@ logs/roadmap_state/
 .vscode/
 .idea/
 *.swp
+# Завершённые и личные проекты (не для публичного ядра)
+projects/
+

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>СВЯЗЬ // ПАНЕЛЬ ОПЕРАТОРА</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<div class="crt">
+
+  <!-- Верхняя строка -->
+  <div class="topbar">
+    <div class="top-left">СВЯЗЬ // ПАНЕЛЬ ОПЕРАТОРА</div>
+    <div class="top-center" id="clock">--:--:--</div>
+    <div class="top-right" id="netstat">СЕТЬ: OK</div>
+  </div>
+
+  <!-- Табы -->
+  <div class="tabs">
+    <button class="tab active" data-tab="chat">ЧАТ</button>
+    <button class="tab" data-tab="pers">ПЕРСОНАЛЬНЫЕ</button><button class="tab" data-tab="mnemo">МНЕМОСХЕМА</button>
+    <button class="tab" data-tab="logs">ЛОГИ</button>
+    <button class="tab" data-tab="projects">ПРОЕКТЫ</button>
+  </div>
+
+  <!-- Экран ЧАТ -->
+  <div class="screen active" id="screen-chat">
+    <div class="main">
+      <div class="panel">
+        <div class="panel-block">
+          <div class="panel-title">КАНАЛЫ</div>
+          <div class="chan-list" id="chanList"></div>
+        </div>
+        <div class="panel-block">
+          <div class="panel-title">МЕТРИКИ</div>
+          <div class="metrics">
+            <div class="metric"><span>сессия</span><b id="mSession">0с</b></div>
+            <div class="metric"><span>сообщений</span><b id="mMsgs">0</b></div>
+            <div class="metric"><span>адресат</span><b id="mTo">ВСЕ</b></div>
+          </div>
+        </div>
+        <div class="panel-block">
+          <div class="panel-title">ПУЛЬТ</div>
+          <div class="pult">
+            <button class="pbtn meeting" id="btnMeeting" title="Созвать совещание: пауза всем, сбор в чате">СОВЕЩАНИЕ</button>
+            <button class="pbtn" id="btnPauseAll">ПАУЗА ВСЕМ</button>
+            <button class="pbtn" id="btnResumeAll">ПРОДОЛЖИТЬ</button>
+            <button class="pbtn" id="btnClearView">ОЧИСТИТЬ</button>
+          </div>
+        </div>
+        <div class="panel-block grow">
+          <div class="panel-title">УЧАСТНИКИ</div>
+          <div class="roster" id="roster"></div>
+        </div>
+      </div>
+
+      <div class="chat">
+        <div class="chat-title">
+          <span>КАНАЛ СВЯЗИ</span>
+          <span id="targetBadge">→ ВСЕ</span>
+        </div>
+        <div id="feed"></div>
+        <div id="typing"></div>
+        <div id="voiceHint"></div>
+        <div class="composer">
+          <span class="prompt">&gt;</span>
+          <textarea id="input" placeholder="введите сообщение..." autofocus></textarea>
+          <button id="btnVoice" title="голосовой ввод (микрофон)">&#127908;</button>
+          <button id="btnSend" title="отправить">&gt;_</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-pers"><div class="pers-wrap"><div class="pers-list" id="persList"></div><div class="pers-chat"><div class="pers-title" id="persTitle">выберите агента</div><div id="persFeed"></div><div class="pers-composer"><textarea id="persInput" placeholder="сообщение агенту..."></textarea><button id="persSend">&gt;_</button></div></div></div></div>
+  <!-- Экран МНЕМОСХЕМА -->
+  <div class="screen" id="screen-mnemo">
+    <div class="mnemo-wrap">
+      <svg id="mnemo" viewBox="0 0 1400 760" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="monitor" id="monitor">
+        <div class="mon-title">МОНИТОРИНГ КАНАЛОВ</div>
+        <div id="monList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Экран ЛОГИ -->
+  <div class="screen" id="screen-logs">
+    <div class="logs-wrap">
+      <div class="log-tabs" id="logTabs"></div>
+      <pre class="log-body" id="logBody">выберите лог...</pre>
+    </div>
+  </div>
+
+  <!-- Экран ПРОЕКТЫ -->
+  <div class="screen" id="screen-projects">
+    <div class="projects-wrap">
+      <iframe id="projectsFrame" src="about:blank" title="Проекты"></iframe>
+    </div>
+  </div>
+
+</div>
+
+<script src="/app.js"></script>
+<script src="/mnemo.js"></script>
+<script src="/pers.js"></script>
+</body>
+</html>

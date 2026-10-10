@@ -4,6 +4,46 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [1.4.2] — 2026-10-10
+
+### Fixed
+
+- Путь к mail_bot в boot-all.ps1 (шаблон) — корректен
+  для плоской структуры jewai ($root\mail_bot\mail_bot.py).
+
+## [1.4.1] — 2026-10-10
+
+### Added
+
+- install.py: интерактивная настройка почты при установке
+  (host, port, sender, password) — создаёт .smtp_token и
+  mail_bot/whitelist.json.
+- install.py: блок «Полезное» со ссылками на README-и.
+- mail_bot/whitelist.example.json — шаблон.
+- mail_bot/README.md — раздел «Настройка для нового
+  пользователя» (5 шагов).
+- README.md — раздел «Post-install checklist».
+
+### Changed
+
+- install.py COPY_DIRS += mail_bot, messaging.
+- install.py COPY_FILES += .smtp_token.example.
+- mail_bot: WHITELIST/OPERATOR_EMAILS из whitelist.json.
+- mail_bot: Subject — срезание Re:/Fwd:/Пере:/[auto] циклом.
+- mail_bot: автоответ помечен [AUTO] + X-MailBot.
+- mail_bot: тесты 33/33.
+
+### Fixed
+
+- install.py не копировал mail_bot и messaging.
+- Петля: ответ оператора на автоответ дублировал задачу.
+
+## [1.4.0] — 2026-10-10
+
+### Added
+
+- mail_bot — подпроект приёма задач по почте.
+
 ## [1.3.0] — 2026-10-10
 
 ### Added

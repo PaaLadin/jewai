@@ -19,7 +19,7 @@ HERE = Path(__file__).resolve().parent
 
 # Что копировать из исходника в установку (целиком)
 COPY_DIRS = ["sandbox", "extension", "launchers", "emergency",
-             "rag", "templates", "mail_bot"]
+             "rag", "templates", "mail_bot", "algorithms"]
 # messaging/ копируется отдельно (опционально)
 
 # Что копировать из корня (по файлам)
@@ -225,41 +225,6 @@ def main():
         tok.write_text(secrets.token_urlsafe(32), encoding="utf-8")
         print(f"  .agent_token — создан")
 
-    # 5. config.json
-    cfg_file = root / "config.json"
-    cfg = {
-        "root": str(root),
-        "n_agents": n,
-        "letters": list(LETTERS[:n]),
-        "agent_port_base": base_port,
-        "cdp_port_base": cdp_base,
-        "chat_port": chat_port,
-        "proxy_port": proxy_port,
-        "channels": {
-            L: {
-                "agent": base_port + i,
-                "cdp": cdp_base + i,
-                "prefix": "AAAA" if L == "A" else (L + L + "AA"),
-            }
-            for i, L in enumerate(LETTERS[:n])
-        },
-        "mail_bot": {"enabled": mail_bot_enabled},
-        "messaging": {"included": messaging_included},
-    }
-    if cfg_file.exists():
-        if ask_yes("config.json уже есть. Перезаписать?", "n"):
-            cfg_file.write_text(
-                json.dumps(cfg, ensure_ascii=False, indent=2),
-                encoding="utf-8")
-            print("  config.json — перезаписан")
-        else:
-            print("  config.json — оставлен существующий")
-    else:
-        cfg_file.write_text(
-            json.dumps(cfg, ensure_ascii=False, indent=2),
-            encoding="utf-8")
-        print("  config.json — создан")
-
     # 5b. Опциональные подпроекты
     print()
     mail_bot_enabled = False
@@ -310,6 +275,41 @@ def main():
         print("  2. Заполни mail_bot/whitelist.json.")
         print("  3. Читай mail_bot/README.md.")
 
+    # 5. config.json
+    cfg_file = root / "config.json"
+    cfg = {
+        "root": str(root),
+        "n_agents": n,
+        "letters": list(LETTERS[:n]),
+        "agent_port_base": base_port,
+        "cdp_port_base": cdp_base,
+        "chat_port": chat_port,
+        "proxy_port": proxy_port,
+        "channels": {
+            L: {
+                "agent": base_port + i,
+                "cdp": cdp_base + i,
+                "prefix": "AAAA" if L == "A" else (L + L + "AA"),
+            }
+            for i, L in enumerate(LETTERS[:n])
+        },
+        "mail_bot": {"enabled": mail_bot_enabled},
+        "messaging": {"included": messaging_included},
+    }
+    if cfg_file.exists():
+        if ask_yes("config.json уже есть. Перезаписать?", "n"):
+            cfg_file.write_text(
+                json.dumps(cfg, ensure_ascii=False, indent=2),
+                encoding="utf-8")
+            print("  config.json — перезаписан")
+        else:
+            print("  config.json — оставлен существующий")
+    else:
+        cfg_file.write_text(
+            json.dumps(cfg, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        print("  config.json — создан")
+
     # 6. launchers
     sys.path.insert(0, str(root / "launchers"))
     try:
@@ -337,7 +337,8 @@ def main():
     print(f"  - Обзор проекта:    {root}\\README.md")
     print(f"  - Установка:        {root}\\INSTALL.md")
     print(f"  - Почта (mail_bot): {root}\\mail_bot\\README.md")
-    print(f"  - Маркеры и обмен:  {root}\\messaging\\README.md")
+    if messaging_included:
+        print(f"  - Маркеры и обмен:  {root}\\messaging\\README.md")
     print(f"  - Канон:            {root}\\algorithms\\marker_protocol.md")
     if mail_bot_enabled:
         print("  - Почта настроена. Автозапуск mail_bot в boot-all.ps1.")

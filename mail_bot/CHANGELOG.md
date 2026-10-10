@@ -1,5 +1,29 @@
 # CHANGELOG — mail_bot
 
+## v1.4.0 — 2026-10-10
+
+### Added
+
+- `whitelist.json` — whitelist и operator_emails вынесены
+  из кода в отдельный файл. Шаблон whitelist.example.json.
+- Срезание префиксов Re:/Fwd:/Пере:/[auto] в Subject
+  (циклическое, поддерживает Re: Re: Re:).
+- Метка `[AUTO]` в автоответе + заголовок X-MailBot
+  (вторичная защита от петли).
+- Тесты: 33/33 (было 27).
+
+### Changed
+
+- mail_bot.py: WHITELIST/OPERATOR_EMAILS читаются
+  из whitelist.json при импорте.
+
+### Fixed
+
+- Оператор ответил на автоответ, Subject `Re: [A]`
+  дублировал задачу. Теперь: Re:/Fwd: срезаются,
+  [AUTO]-помеченные письма игнорируются.
+
+Dixi. 8A (Аркадий), 2026-10-10.
 ## v0.2.0 — 2026-10-10
 
 ### Added

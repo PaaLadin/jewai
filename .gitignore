@@ -53,3 +53,7 @@ logs/roadmap_state/
 # Завершённые и личные проекты (не для публичного ядра)
 projects/
 
+# mail_bot локальные файлы
+.smtp_token
+mail_bot/whitelist.json
+mail_bot/logs/*

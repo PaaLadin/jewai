@@ -34,6 +34,29 @@ t("prefix spaces", mb.RE_SUBJ.match("  [B]  hello  ").group(1) == "B")
 t("no marker -> None", mb.RE_SUBJ.match("Hello no marker") is None)
 t("body captured", mb.RE_SUBJ.match("[A] hello world").group(2) == "hello world")
 
+# Проверка срезания префиксов
+print("[1b] Re:/Fwd:/AUTO")
+def _parse(s):
+    if "[AUTO]" in s.upper():
+        return None
+    s2 = s.strip()
+    prefixes = ("re:", "re :", "fw:", "fwd:", "пере:", "на:", "[auto]")
+    ch = True
+    while ch:
+        ch = False
+        low = s2.lower()
+        for pref in prefixes:
+            if low.startswith(pref):
+                s2 = s2[len(pref):].strip(); ch = True; break
+    m = mb.RE_SUBJ.match(s2)
+    return m.group(1).upper() if m else None
+t("Re: [A]", _parse("Re: [A] x") == "A")
+t("Re: Re: [A]", _parse("Re: Re: [A] x") == "A")
+t("Re: Re: Re: [A]", _parse("Re: Re: Re: [A] x") == "A")
+t("[AUTO] ignored", _parse("[AUTO] Re: [A] x") is None)
+t("[auto] ignored", _parse("[auto] Re: [A] x") is None)
+t("Fwd: [B]", _parse("Fwd: [B] x") == "B")
+
 # 2. decode_header
 print("[2] decode_header")
 t("plain", mb.decode_header("Hello") == "Hello")

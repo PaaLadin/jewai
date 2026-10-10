@@ -167,6 +167,31 @@ Subject письма начинается с маркера адресата
 См. `messaging/README.md`, `messaging/ARCHITECTURE.md`,
 `messaging/CHANGELOG.md`.
 
+## Post-install checklist
+
+После установки проверь:
+
+- [ ] `.agent_token` создан (случайная строка).
+- [ ] `config.json` содержит твои порты и число каналов.
+- [ ] В Chrome-профилях установлено расширение
+      (`chrome://extensions` → Load unpacked → `extension/`).
+- [ ] В сайдпанели задан Token и Agent URL → Set → Self-test.
+- [ ] `launchers/boot-all.ps1` запускает всё без ошибок.
+- [ ] Чат 8770 доступен: `http://127.0.0.1:8770/`.
+
+### Если настраивал приём почты (mail_bot)
+
+- [ ] `.smtp_token` заполнен (5 строк).
+- [ ] `mail_bot/whitelist.json` содержит твой адрес.
+- [ ] Тест: `python mail_bot/mail_bot.py --once`.
+
+Подробно:
+
+- `mail_bot/README.md` — настройка почты.
+- `messaging/README.md` — обмен сообщениями.
+- `algorithms/marker_protocol.md` — канон маркеров.
+- `INSTALL.md` — шаги установки.
+
 ## Лицензия
 
 MIT. См. `LICENSE`.

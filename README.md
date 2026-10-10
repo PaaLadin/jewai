@@ -167,6 +167,54 @@ Subject письма начинается с маркера адресата
 См. `messaging/README.md`, `messaging/ARCHITECTURE.md`,
 `messaging/CHANGELOG.md`.
 
+## Что включено и что опционально
+
+### Ядро (обязательно)
+
+Работает всегда, без настройки:
+
+- Python-агент (`extension/agent.py`) — исполняет команды.
+- Chrome-расширение (`extension/`) — ловит блоки в чате.
+- `sandbox/` — скрипты управления (bridge_kick, read_panel, svc…).
+- `launchers/boot-all.ps1` — подъём всего.
+
+### Многоканальный режим (если >1 канала)
+
+Активно автоматически при N>1, но полезно и на одном:
+
+- Мейнфрейм 8770 (`sandbox/council_chat/`) — общий чат, мнемосхема,
+  персональные чаты, вкладка Проекты.
+- Канон маркеров (`algorithms/marker_protocol.md`) — правила
+  адресации между агентами. Справочник, но без него путаница.
+- `say.py` — broadcast в общий чат.
+
+### Опциональные надстройки
+
+Активируются по решению пользователя:
+
+- **Почта (mail_bot)** — приём задач агентам по email.
+  Установщик спрашивает «Подключить?». Если да — создаёт
+  `.smtp_token` и `mail_bot/whitelist.json`, ставит
+  `mail_bot.enabled: true` в config.json.
+  Если нет — `mail_bot.enabled: false`, автозапуск выключен.
+  Подробно: `mail_bot/README.md`.
+- **Отправка почты (send_email.py)** — из скриптов вручную.
+  Тот же `.smtp_token`. Подробно: `rag/procedures/email_smtp.md`.
+- **messaging/** — справочная копия системы обмена.
+  На работу не влияет. Установщик спрашивает, копировать ли.
+
+### Управление надстройками
+
+Флаги в `config.json`:
+
+    "mail_bot": { "enabled": true },
+    "messaging": { "included": true }
+
+- `mail_bot.enabled: false` — mail_bot не стартует даже при
+  наличии `.smtp_token`.
+- Создаст `.smtp_token` вручную, не меняя флаг — mail_bot
+  не запустится, пока не поставишь `enabled: true`.
+
 ## Post-install checklist
 
 После установки проверь:

@@ -112,6 +112,47 @@ Chrome/Edge. По умолчанию все компоненты слушают 
 - Агент работает в пределах корневой папки установки.
 - Перед правкой критического файла — обязательный бэкап.
 
+
+## Межагентная связь и email
+
+Подпроект `messaging/` — завершённая система обмена сообщениями
+между каналами A/B/C/D, оператором и внешним миром.
+
+### Маркеры
+
+Канон — `algorithms/marker_protocol.md`. Кратко:
+
+- **Без маркера = оператор.** Увидел — стоп команд, ответ.
+- **`[X>Y]`** — p2p, кик коллеге в его CDP-порт.
+- **`[X>ALL]`** — broadcast, через `say.py` в общий чат 8770.
+- **Персональные чаты** — POST `/api/chat/<CH>`, id
+  `Z<CH>AA<NNNN>` (оператор→агент) / `<CH>ZAA<NNNN>` (агент→оператор).
+- **Системные:** `[COUNCIL]`, `[MEETING]`, `[PAUSE-ALL]`,
+  `[RESUME]`, `[ALIVE?]`.
+
+### Email
+
+Отправка писем из проекта — `sandbox/send_email.py`.
+Процедура — `rag/procedures/email_smtp.md`.
+
+Конфиг — `.smtp_token` в корне (5 строк: host, port, sender,
+recipient, password). В git не попадает, шаблон —
+`messaging/.smtp_token.example`.
+
+Команда:
+
+    python sandbox/send_email.py --file <путь> "Тема"
+
+### Метрика переполнения сессии
+
+Токены игнорируются. Единственная метрика — `cmds_from_start`
+из `/api/status`. Порог перерождения — **850+**.
+
+### Подробности
+
+См. `messaging/README.md`, `messaging/ARCHITECTURE.md`,
+`messaging/CHANGELOG.md`.
+
 ## Лицензия
 
 MIT. См. `LICENSE`.

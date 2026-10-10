@@ -1,29 +1,64 @@
 {
   "_comment": "Пример config.json. Реальный файл создаёт install.py.",
   "_comment2": "Все пути — абсолютные, но определяются от папки установки.",
-
   "root": "C:\\jewai",
   "n_agents": 4,
-  "letters": ["A", "B", "C", "D"],
-
+  "letters": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
   "agent_port_base": 8766,
   "cdp_port_base": 9222,
   "chat_port": 8770,
   "proxy_port": 9999,
-
   "extension": "extension",
   "bind": "127.0.0.1",
-
   "channels": {
-    "A": { "name": "Аркадий", "agent": 8766, "cdp": 9222, "prefix": "AAAA" },
-    "B": { "name": "Борис",   "agent": 8767, "cdp": 9223, "prefix": "BBAA" },
-    "C": { "name": "Семён",   "agent": 8768, "cdp": 9224, "prefix": "CCAA" },
-    "D": { "name": "Димон",   "agent": 8769, "cdp": 9225, "prefix": "DDAA" }
+    "A": {
+      "name": "Аркадий",
+      "agent": 8766,
+      "cdp": 9222,
+      "prefix": "AAAA"
+    },
+    "B": {
+      "name": "Борис",
+      "agent": 8767,
+      "cdp": 9223,
+      "prefix": "BBAA"
+    },
+    "C": {
+      "name": "Семён",
+      "agent": 8768,
+      "cdp": 9224,
+      "prefix": "CCAA"
+    },
+    "D": {
+      "name": "Димон",
+      "agent": 8769,
+      "cdp": 9225,
+      "prefix": "DDAA"
+    }
   },
-
   "services": {
-    "watchdog": { "default_interval": 300, "default_threshold": 3 },
-    "recovery": { "default_cooldown": 300 },
-    "autorestart": { "enabled": true }
+    "watchdog": {
+      "default_interval": 300,
+      "default_threshold": 3
+    },
+    "recovery": {
+      "default_cooldown": 300
+    },
+    "autorestart": {
+      "enabled": true
+    }
+  },
+  "mail_bot": {
+    "_comment": "Приём задач по почте. true = запускать при старте (нужен .smtp_token).",
+    "enabled": true
+  },
+  "messaging": {
+    "_comment": "Справочная копия системы обмена. Не влияет на работу.",
+    "included": true
   }
 }

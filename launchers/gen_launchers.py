@@ -240,11 +240,18 @@ if (-not $srv) {{
 }} else {{ Log "chat up" }}
 Start-Sleep -Seconds 5
 
-# 4b. mail_bot (приём задач по почте)
+# 4b. mail_bot (приём задач по почте) - если включён в config.json
+$mbCfg = $cfg.mail_bot
+$mbEnabled = $true
+if ($mbCfg -and ($mbCfg.PSObject.Properties.Name -contains "enabled")) {{
+    $mbEnabled = [bool]$mbCfg.enabled
+}}
 $mb = Get-CimInstance Win32_Process |
   Where-Object {{ ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*mail_bot*" }}
 $mbScript = "$root\\mail_bot\\mail_bot.py"
-if ($mb) {{
+if (-not $mbEnabled) {{
+    Log "mail_bot disabled in config.json"
+}} elseif ($mb) {{
     Log "mail_bot up"
 }} elseif (-not (Test-Path $mbScript)) {{
     Log "mail_bot skipped (script not found)"

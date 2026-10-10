@@ -4,6 +4,26 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [1.5.0] — 2026-10-10
+
+### Added
+
+- `config.json`: флаг `mail_bot.enabled` (bool). Управляет
+  автозапуском mail_bot в boot-all.ps1.
+- `config.json`: флаг `messaging.included` (bool). Справочный
+  подпроект — не влияет на работу.
+- `install.py`: спрашивает про messaging/ (опционально,
+  по умолчанию нет).
+- `install.py`: mail_bot.enabled записывается в config.json
+  в зависимости от ответа про почту.
+
+### Changed
+
+- `boot-all.ps1` (шаблон + живой): уважает `mail_bot.enabled`.
+  Если false — mail_bot не стартует, даже если .smtp_token есть.
+- `config.example.json`: примеры флагов.
+- VERSION -> 1.5.0.
+
 ## [1.4.2] — 2026-10-10
 
 ### Fixed

@@ -63,6 +63,7 @@ async function healthCheck() {
 function render(state) {
   $("token").value = state.token || "";
   $("url").value = state.agentUrl || "";
+  if ($("prefix")) $("prefix").value = state.expectedPrefix || "";
   $("lastId").value = state.lastId || "";
   $("ac").checked = !!state.autoConfirm;
   $("pause").textContent = state.paused ? "Продолжить" : "Пауза";
@@ -228,6 +229,7 @@ async function refresh() { lastState = await send({ type: "get-state" }); render
 
 $("token").addEventListener("change", e => send({ type: "set", patch: { token: e.target.value.trim() } }).then(refresh));
 $("url").addEventListener("change", e => send({ type: "set", patch: { agentUrl: e.target.value.trim() } }).then(refresh));
+if ($("prefix")) $("prefix").addEventListener("change", e => send({ type: "set", patch: { expectedPrefix: e.target.value.trim().toUpperCase() } }).then(refresh));
 $("ac").addEventListener("change", e => send({ type: "set", patch: { autoConfirm: e.target.checked } }).then(refresh));
 $("setLast").addEventListener("click", () => {
   const v = $("lastId").value.trim();

@@ -1,5 +1,5 @@
 const DEFAULTS = {
-  token: "", agentUrl: "http://127.0.0.1:8760",
+  token: "", agentUrl: "http://127.0.0.1:8760", expectedPrefix: "",
   paused: false, autoConfirm: false,
   ledger: [], lastId: "", lastIds: {}, pending: null,
   status: { text: "idle", level: "info", ts: Date.now() },
@@ -16,6 +16,26 @@ const DEFAULTS = {
 };
 
 const get = async () => ({ ...DEFAULTS, ...(await chrome.storage.local.get(DEFAULTS)) });
+
+// Автоопределение агента с фильтром по expectedPrefix.
+// Если expectedPrefix пуст - ищем любого живого (обратная совместимость).
+async function detectAgentPort(expectedPrefix) {
+  const found = [];
+  for (let p = 8760; p <= 8790; p++) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${p}/ping`, { method: "GET" });
+      if (r.ok) {
+        const d = await r.json();
+        // фильтр по prefix, если задан
+        if (!expectedPrefix || d.prefix === expectedPrefix) {
+          found.push({ port: p, prefix: d.prefix, channel: d.channel });
+          if (expectedPrefix) break; // точное совпадение - сразу вернуть
+        }
+      }
+    } catch (e) { /* порт молчит */ }
+  }
+  return found;
+}
 const set = async (p) => chrome.storage.local.set(p);
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -116,8 +136,22 @@ async function pushLedger(entry) {
 async function heartbeat() {
   const s = await get();
   if (!s.token) return;
-  const r = await fetchAgent("/ping", null, "GET");
-  const ok = r && r.ok;
+  let r = await fetchAgent("/ping", null, "GET");
+  let ok = r && r.ok;
+
+  // Если не отвечает - попробовать найти с фильтром по expectedPrefix.
+  if (!ok && s.expectedPrefix) {
+    const list = await detectAgentPort(s.expectedPrefix);
+    if (list.length > 0) {
+      const target = `http://127.0.0.1:${list[0].port}`;
+      if (String(s.agentUrl) !== target) {
+        await set({ agentUrl: target });
+        r = await fetchAgent("/ping", null, "GET");
+        ok = r && r.ok;
+        if (ok) await status(`Агент ${list[0].channel} найден на ${list[0].port}`, "ok");
+      }
+    }
+  }
   const prevFails = (s.health && s.health.fails) || 0;
   const fails = ok ? 0 : prevFails + 1;
   const health = {

@@ -177,6 +177,9 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/ping":
             return self._j(200, {"ok": True, "root": str(ROOT), "version": "4.0.0",
+                                 "channel": _CHANNEL_INFO.get("channel"),
+                                 "prefix": _CHANNEL_INFO.get("prefix"),
+                                 "port": _CHANNEL_INFO.get("port"),
                                  "last_ts": _LAST_TS,
                                  "ago": round(time.time() - _LAST_TS, 1)})
         if self.path == "/health":
@@ -390,6 +393,26 @@ class H(BaseHTTPRequestHandler):
             return self._j(500, {"error": str(e)})
 
 
+# Определение канала и префикса по порту (для /ping).
+_CHANNEL_INFO = {"channel": None, "prefix": None}
+
+def _detect_channel(port):
+    """Прочитать config.json, вернуть (channel, prefix) для порта."""
+    try:
+        import json as _json
+        from pathlib import Path as _Path
+        cfg = _Path(__file__).resolve().parent.parent / "config.json"
+        if not cfg.exists():
+            return None, None
+        d = _json.loads(cfg.read_text(encoding="utf-8"))
+        for k, v in d.get("channels", {}).items():
+            if isinstance(v, dict) and int(v.get("agent", -1)) == int(port):
+                return k, v.get("prefix")
+    except Exception:
+        pass
+    return None, None
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         port = int(sys.argv[1])
@@ -407,7 +430,11 @@ if __name__ == "__main__":
                     port = int(_ch["A"]["agent"])
         except Exception:
             pass
-    log("START", f"v2.1.5 {ROOT} :{port}")
+    _ch, _pfx = _detect_channel(port)
+    _CHANNEL_INFO["channel"] = _ch
+    _CHANNEL_INFO["prefix"] = _pfx
+    _CHANNEL_INFO["port"] = port
+    log("START", f"v2.1.5 {ROOT} :{port} channel={_ch} prefix={_pfx}")
     print("=== JewAI Agent v2.1.5 (voice-levels) ===")
     print("Root:     " + str(ROOT))
     print("Endpoint: http://127.0.0.1:" + str(port))

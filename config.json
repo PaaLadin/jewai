@@ -1,0 +1,24 @@
+{
+  "root": "C:\\DeepSeek\\git\\jewai",
+  "n_agents": 1,
+  "letters": [
+    "A"
+  ],
+  "agent_port_base": 8760,
+  "cdp_port_base": 9220,
+  "chat_port": 8770,
+  "proxy_port": 9999,
+  "channels": {
+    "A": {
+      "agent": 8760,
+      "cdp": 9220,
+      "prefix": "AAAA"
+    }
+  },
+  "mail_bot": {
+    "enabled": false
+  },
+  "messaging": {
+    "included": true
+  }
+}

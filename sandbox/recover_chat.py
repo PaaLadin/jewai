@@ -1,8 +1,12 @@
-"""Full recovery of a chat + panel pair. Correct order:
-1. reload extension (kills content everywhere)
-2. wait
-3. reload chat tab (re-injects content.js fresh)
-4. wait
+"""Recovery of a chat + panel pair (только свой канал).
+
+Порядок:
+1. reload panel (sidepanel.html) - только эта панель.
+2. reload chat tab - re-inject content.js.
+
+ВАЖНО: chrome.runtime.reload() УБРАН. Он глобальный и роняет все
+sidepanel A/B/C/D. Инцидент: кнопка REC на мнемосхеме -> recovery ->
+runtime.reload -> вылет панели. Фикс D+6B 2026-10-11.
 """
 import sys, time, subprocess
 from pathlib import Path
@@ -13,14 +17,6 @@ port = int(sys.argv[1]) if len(sys.argv) > 1 else 9222
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
                                        "council_chat") else _HERE
-
-def reload_ext(b, panel):
-    try:
-        r = panel.evaluate("() => { try { chrome.runtime.reload(); return 'sent'; } catch(e) { return 'err: ' + e; } }")
-        print("  ext reload:", r)
-    except Exception as e:
-        print("  ext reload err:", repr(e)[:120])
-
 def reload_chat(b):
     ctx = b.contexts[0]
     for pg in ctx.pages:
@@ -48,18 +44,13 @@ with sync_playwright() as p:
         print("no panel target")
         sys.exit(2)
 
-    print("step 1: reload extension")
-    reload_ext(b, panel)
-    print("wait 5s")
-    time.sleep(5)
-
-    # panel needs reload after ext reload
-    print("step 2: reload panel")
+    # step 1: только своя панель (глобальный runtime.reload удалён).
+    print("step 1: reload panel (local)")
     try:
         panel.reload()
         print("  panel reloaded")
-    except Exception:
-        pass
+    except Exception as e:
+        print("  panel reload err:", repr(e)[:120])
     print("wait 3s")
     time.sleep(3)
 

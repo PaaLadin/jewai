@@ -86,6 +86,26 @@ def write_wd_state(ch, **kw):
         pass
 
 
+def rec_state_file(ch):
+    return SVC_DIR / ("recovery_%s.json" % ch)
+
+
+def write_rec_state(ch, **kw):
+    # состояние recovery для канала (формат как watchdog_*.json)
+    p = rec_state_file(ch)
+    cur = {}
+    if p.exists():
+        try:
+            cur = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            cur = {}
+    cur.update(kw)
+    try:
+        p.write_text(json.dumps(cur, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def pidfile(ch, kind):
     return SVC_DIR / ("%s_%s.pid" % (kind, ch))
 
@@ -172,6 +192,9 @@ def start(ch, kind, interval, threshold, cooldown, check_dom=True, dom_stale=15)
             args = [sys.executable, str(ROOT / "sandbox" / "recover_chat.py"), str(cdp)]
         meta = {"cooldown": cooldown, "cdp": cdp}
         pid = spawn(args, ch, kind, meta)
+        write_rec_state(ch, state="on", pid=pid, started=time.time(),
+                        cdp=cdp, cooldown=cooldown,
+                        on_by=getattr(start, "_by", "unknown"), on_at=time.time())
         log("recovery %s started pid=%d cooldown=%d" % (ch, pid, cooldown))
         print(json.dumps({"ok": True, "pid": pid, "channel": ch, "kind": kind, "params": meta}))
         return 0
@@ -182,6 +205,19 @@ def start(ch, kind, interval, threshold, cooldown, check_dom=True, dom_stale=15)
 def stop(ch, kind):
     r = read_pid(ch, kind)
     if not r:
+        # Процесса нет (или pid-файл протух). Всё равно пишем state=off:
+        # иначе стухший on остаётся в *_<CH>.json, и панель рисует
+        # сервис живым. Дыра найдена C (11.10, recovery_C pid=9604).
+        try:
+            if kind == "watchdog":
+                write_wd_state(ch, state="off", off_by=getattr(stop, "_by", "unknown"),
+                               off_at=time.time(), reason="no_proc")
+            elif kind == "recovery":
+                write_rec_state(ch, state="off", pid=None,
+                                off_by=getattr(stop, "_by", "unknown"),
+                                off_at=time.time(), reason="no_proc")
+        except Exception:
+            pass
         print(json.dumps({"ok": True, "was_running": False, "channel": ch, "kind": kind}))
         return 0
     pid = r["pid"]
@@ -198,6 +234,9 @@ def stop(ch, kind):
     if kind == "watchdog":
         write_wd_state(ch, state="off", off_by=getattr(stop, "_by", "unknown"),
                        off_at=time.time())
+    elif kind == "recovery":
+        write_rec_state(ch, state="off", pid=None,
+                        off_by=getattr(stop, "_by", "unknown"), off_at=time.time())
     log("%s %s stopped pid=%d" % (kind, ch, pid))
     print(json.dumps({"ok": True, "stopped": pid, "channel": ch, "kind": kind}))
     return 0

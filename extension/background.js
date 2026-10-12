@@ -188,34 +188,66 @@ async function syncWatchdogState() {
     const map = { "6": "A", "7": "B", "8": "C", "9": "D" };
     const ch = map[(parseInt(m[1], 10) % 10)];
     if (!ch) return;
-    const path = "logs/svc/watchdog_" + ch + ".json";
-    const r = await fetchAgent("/read", { path });
-    if (!r || !r.ok || typeof r.content !== "string") return;
-    let wd;
-    try { wd = JSON.parse(r.content); } catch (e) { return; }
+    // ---- WATCHDOG ----
+    const wdPath = "logs/svc/watchdog_" + ch + ".json";
+    const r = await fetchAgent("/read", { path: wdPath });
+    let wd = null;
+    if (r && r.ok && typeof r.content === "string") {
+      try { wd = JSON.parse(r.content); } catch (e) { wd = null; }
+    }
+    // ---- RECOVERY (DCCA0022 fix: sync recovery too) ----
+    const rcPath = "logs/svc/recovery_" + ch + ".json";
+    const r2 = await fetchAgent("/read", { path: rcPath });
+    let rc = null;
+    if (r2 && r2.ok && typeof r2.content === "string") {
+      try { rc = JSON.parse(r2.content); } catch (e) { rc = null; }
+    }
+    if (!wd && !rc) return;
     const cur = (await get()).watchdog || {};
-    const next = {
+    const next = wd ? {
       state: wd.state || "off",
       on_by: wd.on_by || null,
       on_at: wd.on_at || null,
       off_by: wd.off_by || null,
       off_at: wd.off_at || null,
-    };
+    } : cur;
     // Пишем ВСЕГДА оба места (дёшево, раз в 20с).
     const s2 = await get();
     const svc = { ...(s2.svc || {}) };
     svc[ch] = svc[ch] || {};
-    svc[ch].watchdog = {
-      on: next.state === "on",
-      on_by: next.on_by,
-      off_by: next.off_by,
-      params: (svc[ch].watchdog && svc[ch].watchdog.params) || { interval: 10, threshold: 3 }
-    };
-    const curSvc = (s2.svc || {})[ch] && (s2.svc || {})[ch].watchdog;
-    if (cur.state !== next.state || cur.on_by !== next.on_by
-        || cur.off_by !== next.off_by
-        || !curSvc || curSvc.on !== (next.state === "on")) {
-      await set({ watchdog: next, svc });
+    let svcChanged = false;
+    if (wd) {
+      svc[ch].watchdog = {
+        on: next.state === "on",
+        on_by: next.on_by,
+        off_by: next.off_by,
+        params: (svc[ch].watchdog && svc[ch].watchdog.params) || { interval: 10, threshold: 3 }
+      };
+      const curSvc = (s2.svc || {})[ch] && (s2.svc || {})[ch].watchdog;
+      if (cur.state !== next.state || cur.on_by !== next.on_by
+          || cur.off_by !== next.off_by
+          || !curSvc || curSvc.on !== (next.state === "on")) {
+        await set({ watchdog: next });
+        svcChanged = true;
+      }
+    }
+    if (rc) {
+      const rcState = rc.state || "off";
+      const curRc = (s2.svc || {})[ch] && (s2.svc || {})[ch].recovery;
+      svc[ch].recovery = {
+        on: rcState === "on",
+        on_by: rc.on_by || null,
+        off_by: rc.off_by || null,
+        cooldown: (svc[ch].recovery && svc[ch].recovery.cooldown) || rc.cooldown || 300
+      };
+      if (!curRc || curRc.on !== (rcState === "on")
+          || curRc.on_by !== (rc.on_by || null)
+          || curRc.off_by !== (rc.off_by || null)) {
+        svcChanged = true;
+      }
+    }
+    if (svcChanged) {
+      await set({ svc });
       chrome.runtime.sendMessage({ type: "state-changed" }).catch(() => {});
     }
   } catch (e) { /* тихо */ }

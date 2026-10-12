@@ -58,3 +58,6 @@ projects/
 .smtp_token
 mail_bot/whitelist.json
 mail_bot/logs/*
+
+# runner output
+sandbox/runs/

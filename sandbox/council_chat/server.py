@@ -567,8 +567,45 @@ def read_svc_params(ch_key):
     return out
 
 
+def _pid_alive(pid, expect=None):
+    """Windows: жив ли процесс pid, и ТОТ ЛИ это процесс.
+
+    pid переиспользуется Windows: если recovery умер, а его PID
+    занял chrome.exe, наивная проверка даст ложный ON. Сверяем
+    Name (python/pythonw) и, если задан, подстроку CommandLine.
+    None - не смогли определить.
+    """
+    if not pid:
+        return None
+    try:
+        r = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "(Get-CimInstance Win32_Process -Filter \"ProcessId=%d\" | "
+             "Select-Object -First 1 Name,CommandLine | "
+             "ConvertTo-Csv -NoTypeInformation)" % int(pid)],
+            capture_output=True, text=True, timeout=8,
+            encoding="utf-8", errors="replace",
+            creationflags=_no_window_flags())
+        out = (r.stdout or "").strip()
+        if not out or len(out.splitlines()) < 2:
+            return False
+        row = out.splitlines()[1]
+        low = row.lower()
+        if "python" not in low and "pythonw" not in low:
+            return False
+        if expect and expect.lower() not in low:
+            return False
+        return True
+    except Exception:
+        return None
+
+
 def read_svc_state(ch_key):
-    """Читает logs/svc/watchdog_<CH>.json. Возвращает (wd, rec)."""
+    """Читает logs/svc/<kind>_<CH>.json. Возвращает (wd, rec).
+
+    state=on без живого pid -> False (сервис не работает).
+    Файла нет -> null (не запускался).
+    """
     svc_dir = ROOT / "logs" / "svc"
     wd = None
     rec = None
@@ -579,7 +616,12 @@ def read_svc_state(ch_key):
         try:
             d = json.loads(p.read_text(encoding="utf-8"))
             state = d.get("state", "off")
-            val = (state == "on")
+            if state == "on":
+                expect = "watchdog.py" if kind == "watchdog" else "recovery_loop.py"
+                alive = _pid_alive(d.get("pid"), expect)
+                val = False if alive is False else True
+            else:
+                val = False
             if kind == "watchdog":
                 wd = val
             else:
@@ -950,11 +992,13 @@ class Handler(BaseHTTPRequestHandler):
                 return
             append_message(msg)
             if frm == "operator":
+                # Оператор 02:40 (12.10): фраза оператора = broadcast всем,
+                # в любом режиме. Текст идёт в кике. Режимная развилка убрана.
                 if to == "ALL":
-                    kick_all("[COUNCIL] Новая задача от оператора. Прочитай council_chat/chat.jsonl последнюю строку.")
+                    kick_all("[COUNCIL] Оператор: " + text[:400])
                 elif to in CHANNELS:
                     ch = CHANNELS[to]
-                    kick(ch["cdp"], "[COUNCIL] Оператор обратился к тебе. Прочитай council_chat/chat.jsonl последнюю строку.")
+                    kick(ch["cdp"], "[COUNCIL] Оператор: " + text[:400])
                     append_to_todo(to, msg)
             self._send(200, {"ok": True, "msg": msg})
 
@@ -984,6 +1028,9 @@ class Handler(BaseHTTPRequestHandler):
                 err = (r.stderr or "").strip()
                 # читаем актуальное состояние
                 wd, rec = read_svc_state(ch_key)
+                # сброс кэша статуса: иначе клиент 2с видит старое значение
+                _status_cache["ts"] = 0
+                _status_cache["data"] = None
                 resp = {"ok": r.returncode == 0, "channel": ch_key,
                         "kind": kind, "action": action,
                         "rc": r.returncode,
@@ -1000,7 +1047,7 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/api/meeting":
             on = bool(data.get("on", False))
             if on:
-                kick_all("[HALT] СОВЕЩАНИЕ. СТОП рабочим операциям (run/write/sandbox). Общение в чате РАЗРЕШЕНО. Работай только языком, не инструментами. Ждать [RESUME].")
+                kick_all("[MEETING] СОВЕЩАНИЕ ИДЁТ. Инструменты (run/write/sandbox) — стоп. Режим диалога: отвечай оператору и коллегам ТЕКСТОМ в ОБЩИЙ чат через say.py (to=ALL). Это правило совещания. Запрещено: read/write/run/sandbox. Задачи оператора приходят прямо в кике. Отжатие кнопки = [RESUME].")
             else:
                 for ch_key, ch in CHANNELS.items():
                     kick(ch["cdp"], "[RESUME] Совещание окончено. Возобновляй работу.")

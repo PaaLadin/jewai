@@ -4,6 +4,49 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [1.5.9] — 2026-10-12
+
+### Fixed
+
+- **`read_svc_state`: проверка процесса, не только PID.** Windows
+  переиспользует PID: убитый recovery мог дать ложный `on`, если его
+  PID занял другой процесс (chrome.exe). Теперь сверяются имя
+  (python/pythonw) и командная строка (`watchdog.py`/`recovery_loop.py`).
+- **`svc.py stop` пишет `state=off`** и когда процесса уже нет
+  (`reason=no_proc`). Раньше стухший `on` оставался в `*_<CH>.json`.
+- **`/api/svc`: сброс кэша статуса** сразу после действия. Клиент
+  видел старое состояние ~2 с (кнопка «не реагировала»).
+- **`recover_chat.py`: убран глобальный `chrome.runtime.reload()`.**
+  Он ронял все sidepanel A/B/C/D. Теперь только своя панель + своя
+  вкладка. Инцидент: кнопка REC на мнемосхеме -> вылет панели.
+- **`background.js`: синк recovery-состояния** из
+  `logs/svc/recovery_<CH>.json` (раньше синкался только watchdog).
+- **`export_share.py`: изолированный контекст + scroll-loop.**
+  Раньше брал контекст панели (крал фокус) и одним снимком innerText
+  обрезал длинные беседы. Теперь `b.new_context()` + пошаговый скролл
+  с дедупом.
+
+### Changed
+
+- **`gen_launchers.py`: `boot-all.ps1` config-driven** (как живой).
+  Читает `config.json`, N каналов 1-10, секция mail_bot. Убраны
+  хардкоды портов.
+- **`server.py`: фраза оператора в чате = broadcast всем** (в любом
+  режиме). Убрана развилка «Новая задача от оператора».
+- **`server.py`: текст `[MEETING]`** — ответы в общий чат через say.py
+  (`to=ALL`), не киком в личку.
+- **`content.js`: маркер `[ALIVE?]`** в тексте ALIVE-пинга (канон).
+
+### Docs
+
+- `marker_protocol.md`: §8 (совещание, `>OP` -> `>ALL`), LA-канон.
+- `behavior_rules.md`: `[MEETING]`, `[LA>X]`, ссылка на канон.
+- `0_ACTIVATION.md`: LA, `[MEETING]`.
+- `rag/INDEX.md`, `algorithms/INDEX.md`: урезаны под публичный состав.
+
+Dixi. (черновик 6B, ждёт апрува и версии)
+
+
 ## [1.5.8] — 2026-10-11
 
 ### Fixed

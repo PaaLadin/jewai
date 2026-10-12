@@ -278,6 +278,20 @@ if ($mb) {
 }
 Start-Sleep -Seconds 2
 
+# --- 4c. la_watchdog (rebirth monitor; skip если скрипта нет) ---
+$lw = Get-CimInstance Win32_Process |
+  Where-Object { ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*la_watchdog*" }
+$lwScript = Join-Path $Root "sandbox\la_watchdog.py"
+if ($lw) {
+    Log "la_watchdog up"
+} elseif (-not (Test-Path $lwScript)) {
+    Log "la_watchdog skipped (no script)"
+} else {
+    Start-Process pythonw -ArgumentList @($lwScript, "--loop", "1800", "--rebirth-monitor") -WorkingDirectory (Split-Path $lwScript) -WindowStyle Hidden
+    Log "la_watchdog started"
+}
+Start-Sleep -Seconds 2
+
 # --- 5. health ---
 foreach ($L in $letters) {
     $port = $cfg.channels.$L.agent

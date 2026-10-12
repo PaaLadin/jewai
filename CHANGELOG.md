@@ -4,6 +4,27 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [1.6.0] - 2026-10-12
+
+### Added
+
+- **`mnemo.js`: alive-кнопка в карточке монитора.** Ранее `aliveBtnHtml`
+  был мёртвым кодом (не вызывался, CSS `.alive-btn` отсутствовал).
+  Теперь кнопка выводится в карточку каждого канала.
+
+### Fixed
+
+- **`mnemo.js`: синк alive-состояния из `/api/status`.** Единый источник
+  (как `svc_*`), вместо `/api/health` с кэшем 60с + локальный стейт.
+  Рассинхрон панель↔схема устранён.
+
+- **`launchers/gen_launchers.py`: блок la_watchdog в boot-all.**
+  Guard-skip: если процесс уже идёт или скрипта нет — пропуск.
+
+### Changed
+
+- **`server.py`: `/api/status` отдаёт `alive_button`** (поле в channels).
+
 ## [1.5.9] — 2026-10-12
 
 ### Fixed

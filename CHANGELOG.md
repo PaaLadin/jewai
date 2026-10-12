@@ -4,6 +4,32 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.0.0] - 2026-10-13
+
+**V5 — новая архитектура папок + мультимодельность (первая волна).**
+
+### Added
+
+- **`sandbox/find.py`** — поиск по дереву с исключениями (runtime,
+  models, archive, backups, media, git, __pycache__, .bak*). Правило
+  №22 в behavior_rules: поиск только через find.py (иначе TIMEOUT 60с
+  на профилях Chrome).
+- **`extension_qwen/`** — адаптер моста для Qwen (chat.qwen.ai).
+  Отличия: pre.innerText (textContent сливает строки), выкидывание
+  gutter-номеров, NBSP->пробел, textarea .message-input-textarea.
+- **`extension_alice/`** — адаптер для Алисы (alice.yandex.ru).
+  textarea .AliceInput-Textarea, двойной Enter.
+- **`config.example.json`: `multimodel`** — флаги qwen/alice
+  (опциональные компоненты, как mail_bot).
+
+### Changed
+
+- **Архитектура папок (V5):** Chrome-профили вынесены из корня
+  в `runtime/chrome/<L>/`. Launchers (boot-all, gen_launchers,
+  stop-all) переведены на новые пути. find.py покрывает runtime.
+
+Dixi. 7B (Борис), 2026-10-13.
+
 ## [1.6.0] - 2026-10-12
 
 ### Added

@@ -176,6 +176,17 @@ watchdog не выключать, даже если кажется, что вс�
     проекта (`runtime/`, `sandbox/`) или в `%USERPROFILE%`.
     Урок: два скрипта клали бэкапы в `C:\`, их убрали в архив.
 
+22. **Поиск по дереву — только через `sandbox/find.py`.** Не использовать
+    `Get-ChildItem -Recurse` и `rglob` по всему корню: виснут на
+    профилях Chrome (runtime/chrome/<L>, сотни МБ) — TIMEOUT 60с.
+    find.py имеет встроенные исключения (runtime, models, archive,
+    backups, media, git, __pycache__ и др.).
+
+      python sandbox/find.py "*.py"           # по имени
+      python sandbox/find.py "паттерн" --text # по содержимому
+      python sandbox/find.py "*.md" --dir rag # в папке
+
+
 ---
 
 ### Фоновые процессы (правило 07.10)

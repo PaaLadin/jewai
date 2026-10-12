@@ -1,0 +1,163 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  * { box-sizing: border-box; }
+  body { font: 12px/1.45 "Consolas","Courier New",monospace; margin:0; padding:10px;
+         background:#0a0a0a; color:#00ff66;
+         text-shadow:0 0 3px rgba(0,255,102,0.35); }
+  body::before {
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:9999;
+    background: repeating-linear-gradient(0deg,
+      rgba(0,255,102,0.025) 0px, rgba(0,255,102,0.025) 1px,
+      transparent 1px, transparent 3px);
+  }
+  body::after {
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:9998;
+    background: radial-gradient(circle at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  }
+  h3 { margin:0 0 8px; font-size:12px; letter-spacing:2px;
+       display:flex; align-items:center; gap:6px;
+       text-shadow:0 0 8px rgba(0,255,102,0.6); }
+  #dot { width:10px; height:10px; background:#333; }
+  #dot.on { background:#00ff66; box-shadow:0 0 6px #00ff66; }
+  #dot.paused { background:#ffb000; box-shadow:0 0 6px #ffb000; }
+  #dot.err { background:#ff3b3b; box-shadow:0 0 6px #ff3b3b; }
+  .row { display:flex; gap:6px; align-items:center; margin:5px 0; }
+  input[type=text] { flex:1; background:transparent; border:1px solid #0a8a3a;
+    color:#00ff66; padding:4px 6px; font-family:inherit; font-size:12px;
+    caret-color:#00ff66; }
+  input[type=text]:focus { outline:none; border-color:#00ff66;
+    box-shadow:0 0 8px rgba(0,255,102,0.3); }
+  button { background:transparent; color:#00ff66; border:1px solid #0a8a3a;
+    padding:5px 9px; cursor:pointer; font-family:inherit; font-size:11px;
+    letter-spacing:1px; text-shadow:0 0 6px rgba(0,255,102,0.5); }
+  button:hover { border-color:#00ff66; background:rgba(0,255,102,0.1); }
+  button.danger { color:#ff3b3b; border-color:rgba(255,59,59,0.5); }
+  button.danger:hover { background:rgba(255,59,59,0.1); border-color:#ff3b3b; }
+  button.warn { color:#ffb000; border-color:rgba(255,176,0,0.5); }
+  button.warn:hover { background:rgba(255,176,0,0.1); border-color:#ffb000; }
+  button.ghost { color:#0a8a3a; border-color:#0a8a3a; }
+  button.ghost:hover { color:#00ff66; border-color:#00ff66; }
+  #stage { background:rgba(0,20,8,0.3); border:1px solid #0a8a3a;
+    padding:10px; margin:8px 0; min-height:44px; font-size:12px; }
+  #stage .big { font-size:13px; }
+  .lvl-info { color:#6a9a7a; }
+  .lvl-ok { color:#00ff66; text-shadow:0 0 6px rgba(0,255,102,0.6); }
+  .lvl-warn { color:#ffb000; text-shadow:0 0 6px rgba(255,176,0,0.6); }
+  .lvl-err { color:#ff3b3b; text-shadow:0 0 6px rgba(255,59,59,0.6); }
+  #log, #statuslog { max-height:170px; overflow:auto;
+    background:rgba(0,10,4,0.6); border:1px solid #0a8a3a;
+    padding:6px; font-family:inherit; font-size:11px; white-space:pre-wrap; }
+  .entry { padding:2px 0; border-bottom:1px dashed #0a3a1a; }
+  .ok { color:#00ff66; } .fail { color:#ff3b3b; } .skip { color:#555; }
+  .small { color:#6a9a7a; font-size:11px; }
+  pre.out { background:rgba(0,10,4,0.6); padding:6px; border:1px solid #0a8a3a;
+    font-size:11px; max-height:220px; overflow:auto; white-space:pre-wrap;
+    color:#00ff66; }
+  #health { display:flex; gap:8px; margin:6px 0 2px;
+    font-family:inherit; font-size:11px; flex-wrap:wrap; }
+  .chip { padding:2px 6px; border:1px solid #0a8a3a; background:transparent;
+    color:#6a9a7a; letter-spacing:1px; }
+  .chip.ok { color:#00ff66; border-color:#00ff66;
+    box-shadow:0 0 6px rgba(0,255,102,0.4); }
+  .chip.bad { color:#ff3b3b; border-color:#ff3b3b; }
+  .chip.warn { color:#ffb000; border-color:#ffb000; }
+  .svcgrid { display:grid; grid-template-columns: 42px 1fr 1fr; gap:4px 6px;
+    align-items:center; margin:6px 0; font-size:11px; }
+  .svcgrid .h { color:#6a9a7a; font-size:10px; }
+  .svcbtn { display:flex; align-items:center; gap:6px; background:transparent;
+    border:1px solid #0a8a3a; color:#6a9a7a; padding:4px 6px; cursor:pointer;
+    font-size:11px; font-family:inherit; }
+  .svcbtn.on { background:rgba(0,255,102,0.1); border-color:#00ff66;
+    color:#00ff66; }
+  .pix { width:10px; height:10px; background:#ff3b3b; box-shadow:0 0 4px #ff3b3b; }
+  .pix.pend { background:#ffb000; box-shadow:0 0 4px #ffb000; }
+  .pix.ok { background:#00ff66; box-shadow:0 0 6px #00ff66; }
+  .svcparams { display:flex; gap:4px; margin:2px 0 6px; font-size:10px;
+    color:#6a9a7a; }
+  .svcparams input { width:52px; background:transparent; border:1px solid #0a8a3a;
+    color:#00ff66; padding:2px 4px; font-size:10px; font-family:inherit; }
+  .svcparams input:disabled { opacity:0.5; cursor:not-allowed; }
+  #svcbox { background:rgba(0,10,4,0.4); border:1px solid #0a8a3a;
+    padding:8px; margin:8px 0; }
+  #tok-lamp { width:14px; height:14px; background:#333; border:1px solid #222;
+    flex:0 0 14px; }
+  #tok-lamp.ok { background:#00ff66; box-shadow:0 0 6px #00ff66; }
+  #tok-lamp.yellow { background:#ffb000; box-shadow:0 0 6px #ffb000; }
+  #tok-lamp.red80 { background:#ff3b3b; box-shadow:0 0 6px #ff3b3b;
+    animation: tokblink 2s steps(1) infinite; }
+  #tok-lamp.red90 { background:#ff3b3b; box-shadow:0 0 8px #ff3b3b;
+    animation: tokblink 1s steps(1) infinite; }
+  #tok-lamp.red95 { background:#ff3b3b; box-shadow:0 0 12px #ff3b3b;
+    animation: tokblink 0.5s steps(1) infinite; }
+  @keyframes tokblink { 0%,50% { opacity:1; } 50.01%,100% { opacity:0.15; } }
+  #tok-reset { font-size:10px; padding:2px 6px; }
+  #counters { display:flex; gap:6px; margin:4px 0; }
+  .cnt { flex:1; background:rgba(0,10,4,0.4); border:1px solid #0a8a3a;
+    padding:3px 6px; font-size:10px; text-align:center; }
+  .cnt .num { color:#00ff66; font-size:13px; font-weight:600; display:block; }
+  .cnt .lbl { color:#6a9a7a; font-size:9px; }
+</style></head>
+<body>
+  <h3><span id="dot"></span> JewAI <span style="color:#00ff66">v4</span> <span id="state" class="small"></span></h3>
+  <div id="health">
+    <span class="chip" id="h-agent">agent …</span>
+    <span class="chip" id="h-content">content …</span>
+    <span class="chip" id="h-last">lastId …</span>
+  </div>
+
+  <div id="tok" style="display:flex;gap:6px;align-items:center;margin:6px 0">
+    <span id="tok-text" class="small" style="white-space:nowrap">tokens —</span>
+    <div style="flex:1;height:6px;background:rgba(0,40,15,0.6);overflow:hidden">
+      <div id="tok-bar" style="height:100%;width:0%;background:#00ff66"></div>
+    </div>
+    <span id="tok-lamp" title="уровень заполнения"></span>
+    <button id="tok-reset" class="ghost" title="сбросить счётчики (после перерождения)">reset</button>
+  </div>
+  <div id="counters">
+    <div class="cnt" title="объём переписки (по innerText)">
+      <span class="num" id="cnt-chars">—</span>
+      <span class="lbl">объём (ток.)</span>
+    </div>
+    <div class="cnt" title="сколько раз отправляли форму ввода">
+      <span class="num" id="cnt-sends">—</span>
+      <span class="lbl">отправок</span>
+    </div>
+    <div class="cnt" title="объём × отправки = snowball (накопленный)">
+      <span class="num" id="cnt-snow">—</span>
+      <span class="lbl">снежок (×)</span>
+    </div>
+  </div>
+  <div id="svcbox">
+    <h3 style="margin:0 0 6px">Сервисы (watchdog / recovery)</h3>
+    <div class="svcgrid">
+      <div class="h"></div><div class="h">Watchdog</div><div class="h">Recovery</div>
+    </div>
+    <div id="svc-rows"></div>
+  </div>
+
+  <div id="stage"><span class="big lvl-info">idle</span></div>
+
+  <div class="row"><label style="width:60px">Token</label><input id="token" type="text" placeholder="X-Token"></div>
+  <div class="row"><label style="width:60px">Agent</label><input id="url" type="text"></div>
+  <div class="row"><label style="width:60px">lastId</label><input id="lastId" type="text" placeholder="AAAA0000">
+    <button id="setLast">Set</button></div>
+  <div class="row"><input type="checkbox" id="ac"><label for="ac">подтверждать автоматически</label></div>
+  <div class="row">
+    <button id="pause">Пауза</button>
+    <button id="selftest" class="ghost">Self-test</button>
+    <button id="sandbox" class="ghost">Sandbox-test</button>
+    <button id="reset" class="danger">Сброс</button>
+    <button id="handover" class="warn">2A</button>
+  </div>
+
+    <div id="metrics" class="small" style="margin:4px 0"></div>
+  <div id="pending"></div>
+  <div id="selftest-box"></div>
+
+  <h3 style="margin-top:10px">Ledger <select id="ledgerFilter"><option value="">все</option><option value="AAAA">A</option><option value="BBAA">B</option><option value="CCAA">C</option></select></h3>
+  <div id="log"></div>
+  <h3 style="margin-top:10px">Статусы</h3>
+  <div id="statuslog"></div>
+
+  <script src="sidepanel.js"></script>
+</body></html>

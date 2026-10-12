@@ -60,5 +60,16 @@
   "messaging": {
     "_comment": "Справочная копия системы обмена. Не влияет на работу.",
     "included": true
+  },
+  "multimodel": {
+    "_comment": "Мультимодельность: адаптеры внешних LLM. Каждый опционален.",
+    "qwen": {
+      "enabled": false,
+      "_comment": "extension_qwen (chat.qwen.ai). true = компонент в сборке."
+    },
+    "alice": {
+      "enabled": false,
+      "_comment": "extension_alice (alice.yandex.ru). В разработке."
+    }
   }
 }

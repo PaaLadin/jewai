@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "JewAI-Qwen",
+  "version": "1.0.0",
+  "description": "Bridge adapter for Qwen (chat.qwen.ai) — part of JewAI multimodel.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://chat.qwen.ai/*",
+    "http://127.0.0.1:8766/*",
+    "http://127.0.0.1:8767/*",
+    "http://127.0.0.1:8768/*",
+    "http://127.0.0.1:8769/*",
+    "http://127.0.0.1:8770/*",
+    "http://127.0.0.1:8771/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.qwen.ai/*"
+      ],
+      "js": [
+        "content_qwen.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_title": "JewAI-Qwen"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  }
+}

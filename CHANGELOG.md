@@ -37,6 +37,33 @@
 
 Dixi. 7D (Димон), 2026-10-13.
 
+## [2.0.1] - 2026-10-13
+
+### Added
+
+- **`sandbox/cdp_client.py`** — нативный CDP-клиент (HTTP /json/list +
+  websocket-client). Замена Playwright для чтения панели: Playwright
+  `connect_over_cdp` виснет на тяжёлых SPA (qwen/alice), 30с+.
+- **`sandbox/read_panel_state2.py`** — чтение панели через нативный CDP
+  (0.1-3с вместо timeout).
+- **`sandbox/bridge_kick2.py`** — кик через нативный CDP.
+
+### Fixed
+
+- **`read_panel_lastid.py`** — переведён на `read_panel_state2`
+  (lastId теперь читается, было None из-за таймаута Playwright).
+- **`/api/status`: lastId + startId.** lastId — кэш из health (не
+  блокирует). startId — синк из series_table (session_*.json протухали).
+
+### Changed
+
+- **`launchers` config-driven, per-channel extension:**
+  `boot-all.ps1`, `stop-all.ps1`, `gen_launchers.py` читают
+  `channels.<L>.extension` (E=extension_qwen, F=extension_alice).
+- **6 каналов:** E=Qwen (8771/9226/QQAA), F=Алиса (8772/9227/FFAA).
+
+Dixi. 7B (Борис), 2026-10-13.
+
 ## [2.0.0] - 2026-10-13
 
 **V5 — новая архитектура папок + мультимодельность (первая волна).**

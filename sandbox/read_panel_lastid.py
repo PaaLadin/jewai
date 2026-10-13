@@ -29,8 +29,8 @@ ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
 
 def read_state(port):
     try:
-        r = subprocess.run([sys.executable, str(ROOT / "sandbox" / "read_panel_state.py"), str(port)],
-                           capture_output=True, text=True, timeout=3,
+        r = subprocess.run([sys.executable, str(ROOT / "sandbox" / "read_panel_state2.py"), str(port)],
+                           capture_output=True, text=True, timeout=10,
                            encoding="utf-8", errors="replace",
                            creationflags=_nw_flags())
         return (r.stdout or "")

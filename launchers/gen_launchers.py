@@ -28,7 +28,7 @@ def gen_launchers(root, n, port_base, cdp_base, chat_port, proxy_port=9999):
     for i, L in enumerate(LETTERS[:n]):
         agent_port = port_base + i
         cdp_port = cdp_base + i
-        (root / f"chrome-{L}-data").mkdir(exist_ok=True)
+        (root / "runtime" / "chrome" / L).mkdir(parents=True, exist_ok=True)
 
         ps = f"""# start-{L}.ps1 — Chrome-{L} (CDP {cdp_port}) + агент {L} ({agent_port})
 # Сгенерировано gen_launchers.py. Правки потеряются при переустановке.
@@ -36,7 +36,7 @@ $ErrorActionPreference = "Continue"
 $root = "{root}"
 $chrome = "$env:PROGRAMFILES\\Google\\Chrome\\Application\\chrome.exe"
 $ext = "$root\\extension"
-$prof = "$root\\chrome-{L}-data"
+$prof = "$root\\runtime\\chrome\\{L}"
 $log = "$root\\runtime\\start-chrome-{L}.log"
 
 function Log($m) {{
@@ -48,7 +48,7 @@ function Log($m) {{
 Log "=== start-{L} begin ==="
 
 $ours = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-  Where-Object {{ $_.CommandLine -match "chrome-{L}-data" }}
+  Where-Object {{ $_.CommandLine -match "runtime\\chrome\\{L}" }}
 if ($ours) {{
     Log ("graceful close: " + $ours.Count)
     $ours | ForEach-Object {{
@@ -58,11 +58,11 @@ if ($ours) {{
     for ($i = 0; $i -lt 16; $i++) {{
         Start-Sleep -Milliseconds 500
         $still = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-          Where-Object {{ $_.CommandLine -match "chrome-{L}-data" }}
+          Where-Object {{ $_.CommandLine -match "runtime\\chrome\\{L}" }}
         if (-not $still) {{ Log "closed cleanly"; break }}
     }}
     $still = Get-CimInstance Win32_Process -Filter "Name='chrome.exe'" |
-      Where-Object {{ $_.CommandLine -match "chrome-{L}-data" }}
+      Where-Object {{ $_.CommandLine -match "runtime\\chrome\\{L}" }}
     if ($still) {{
         Log "graceful timeout, force kill"
         $still | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}
@@ -134,7 +134,7 @@ Write-Host "{L}: agent {agent_port}, CDP {cdp_port}"
         "-ErrorAction SilentlyContinue }\n"
         "\n"
         "$chromeNames = @("
-        + ", ".join(f"\"chrome-{L}-data\"" for L in LETTERS[:n])
+        + ", ".join(f"\"runtime\\chrome\\{L}\"" for L in LETTERS[:n])
         + ")\n"
         "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" |\n"
         "  Where-Object {\n"
@@ -230,8 +230,10 @@ foreach ($L in $letters) {
     try { $try = Invoke-RestMethod "http://127.0.0.1:$cdp/json/version" -TimeoutSec 3 } catch {}
     if ($try) { Log "CDP $L ($cdp) up"; continue }
     $chrome = "$env:PROGRAMFILES\Google\Chrome\Application\chrome.exe"
-    $prof = "$Root\chrome-$L-data"
-    $ext = "$Root\extension"
+    $prof = "$Root\runtime\chrome\$L"
+    $extName = $cfg.channels.$L.extension
+    if (-not $extName) { $extName = "extension" }
+    $ext = Join-Path $Root $extName
     if (-not (Test-Path $prof)) { New-Item -ItemType Directory -Path $prof -Force | Out-Null }
     $first = -not (Test-Path (Join-Path $prof "Default\Preferences"))
     $args = @(
@@ -287,7 +289,7 @@ if ($lw) {
 } elseif (-not (Test-Path $lwScript)) {
     Log "la_watchdog skipped (no script)"
 } else {
-    Start-Process pythonw -ArgumentList @($lwScript, "--loop", "1800", "--rebirth-monitor") -WorkingDirectory (Split-Path $lwScript) -WindowStyle Hidden
+    Start-Process pythonw -ArgumentList @($lwScript, "--loop", "1200", "--rebirth-monitor") -WorkingDirectory (Split-Path $lwScript) -WindowStyle Hidden
     Log "la_watchdog started"
 }
 Start-Sleep -Seconds 2

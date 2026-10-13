@@ -300,11 +300,19 @@ def read_start_id(ch_key):
         return None
 
 
+_lastid_cache = {}   # ch -> (ts, lastId, session_min)
+LASTID_TTL = 30
+
 def read_last_id(ch_key):
-    """Читает lastId. Источник: панель через CDP — этап 3.
-    Пока None. Кэшировать не нужно — вызывается редко.
-    """
-    return None
+    """lastId из панели (CDP). Кэш TTL 30с. Нет данных — None."""
+    now = time.time()
+    c = _lastid_cache.get(ch_key)
+    if c and (now - c[0]) < LASTID_TTL:
+        return c[1]
+    # НЕ звать CDP здесь: collect_status должен быть быстрым.
+    # Кэш наполняет panel_lastid() из collect_health (parallel).
+    c = _lastid_cache.get(ch_key)
+    return c[1] if c else None
 
 
 def risk_level(cmds, ch_key):
@@ -661,7 +669,17 @@ def panel_lastid(cdp):
                            encoding="utf-8", errors="replace",
                            creationflags=_no_window_flags())
         d = json.loads(r.stdout or "{}")
-        return d.get("lastId"), d.get("session_min")
+        lid = d.get("lastId")
+        sess = d.get("session_min")
+        # наполняем кэш для read_last_id (collect_status)
+        if lid:
+            ch = None
+            for _L, _c in CHANNELS.items():
+                if _c.get("cdp") == cdp:
+                    ch = _L; break
+            if ch:
+                _lastid_cache[ch] = (time.time(), lid, sess)
+        return lid, sess
     except Exception:
         return None, None
 

@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Hexxagon Music</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+  <header id="hud">
+    <div class="hud-box">
+      <div class="hud-label">ХОД</div>
+      <div id="turn" class="hud-val">—</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">ФИШКИ</div>
+      <div class="hud-val">
+        <span id="score-p1" class="p1">0</span>
+        <span class="sep">:</span>
+        <span id="score-p2" class="p2">0</span>
+      </div>
+    </div>
+    <div class="hud-box wide">
+      <div class="hud-label">ОРКЕСТР</div>
+      <div id="tracks" class="hud-val small"></div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">ХОД</div>
+      <div id="move-count" class="hud-val small">0</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">ВРЕМЯ</div>
+      <div id="timer" class="hud-val small">00:00</div>
+    </div>
+    <div class="hud-box">
+      <div class="hud-label">СТИЛЬ</div>
+      <div id="style-name" class="hud-val small">retrowave</div>
+    </div>
+  </header>
+
+  <main id="stage">
+    <canvas id="board" width="640" height="640"></canvas>
+    <div id="overlay" class="hidden">
+      <div id="overlay-text"></div>
+      <button id="btn-restart">Заново</button>
+    </div>
+  </main>
+
+  <footer id="controls">
+    <div class="ctrl-group ctrl-play">
+      <span class="ctrl-label">ИГРА</span>
+      <select id="players-select" title="Игроков">
+        <option value="2">2 игрока</option>
+        <option value="3">3 игрока</option>
+        <option value="4">4 игрока</option>
+      </select>
+      <select id="mode-select" title="Режим">
+        <option value="vs-ai">против ИИ</option>
+        <option value="hotseat">hot seat</option>
+      </select>
+      <select id="ai-level" title="ИИ">
+        <option value="easy">ИИ: слабый</option>
+        <option value="medium" selected>ИИ: средний</option>
+        <option value="hard">ИИ: сильный</option>
+      </select>
+      <select id="preset-select" title="Пресет">
+        <option value="cross-4">Крест (4)</option>
+        <option value="classic-2">Классика (2)</option>
+        <option value="corners-4">Углы (4)</option>
+        <option value="spiral-3">Спираль (3)</option>
+      </select>
+      <select id="style-select" title="Стиль">
+        <option value="retrowave">retrowave</option>
+        <option value="rock">rock</option>
+        <option value="metal">metal</option>
+        <option value="blues">blues</option>
+        <option value="dnb">dnb</option>
+        <option value="ambient">ambient</option>
+        <option value="chip">chip</option>
+        <option value="jazz">jazz</option>
+        <option value="lofi">lofi</option>
+        <option value="classical">classical</option>
+      </select>
+    </div>
+
+    <div class="ctrl-group ctrl-settings">
+      <span class="ctrl-label">НАСТРОЙКИ</span>
+      <select id="music-source" title="Источник музыки">
+        <option value="author">🎼 Авторская</option>
+        <option value="ai">🤖 ИИ-импровизация</option>
+      </select>
+      <button id="btn-reseed" title="Новый сид ИИ" style="display:none">🎲</button>
+      <select id="pack-select" title="Звук">
+        <option value="analog" selected>аналог</option>
+        <option value="digital">цифра</option>
+        <option value="acoustic">акустика</option>
+        <option value="chip">8-бит</option>
+      </select>
+      <select id="lang-select" title="Язык">
+        <option value="ru" selected>RU</option>
+        <option value="en">EN</option>
+      </select>
+      <select id="theme-select" title="Тема">
+        <option value="neon" selected>неон</option>
+        <option value="phosphor">фосфор</option>
+        <option value="classic">классика</option>
+        <option value="mono">моно</option>
+      </select>
+      <input id="volume-slider" type="range" min="0" max="100" value="70" title="Громкость" style="width:80px;">
+    </div>
+
+    <div class="ctrl-group ctrl-actions">
+      <span class="ctrl-label">ДЕЙСТВИЯ</span>
+      <button id="btn-audio" class="primary">▶ Включить звук</button>
+      <button id="btn-undo" disabled>↶ Отмена</button>
+      <button id="btn-new">Новая партия</button>
+      <span class="ctrl-sep"></span>
+      <button id="btn-daily" title="Партия дня">📅</button>
+      <button id="btn-share" title="Скопировать ссылку">🔗</button>
+      <button id="btn-demo" title="Демо (AI vs AI)">👁</button>
+      <button id="btn-editor" title="Редактор паттерна">🎛</button>
+      <button id="btn-legend" title="Легенда секторов">🗺</button>
+      <button id="btn-export" title="Сохранить партию">💾</button>
+      <button id="btn-import" title="Открыть партию">📁</button>
+      <button id="btn-wav" title="Экспорт мелодии в WAV">🎵</button>
+      <button id="btn-achv" title="Достижения">🏆</button>
+      <button id="btn-lb" title="Лидеры">📊</button>
+      <button id="btn-mute" title="Звук вкл/выкл (M)">🔊</button>
+      <button id="btn-help" title="Обучение">?</button>
+      <input id="replay-file" type="file" accept=".json" style="display:none">
+    </div>
+
+    <div id="player-styles" class="styles-row"></div>
+    <div id="status" class="small"></div>
+  </footer>
+</div>
+
+<script src="js/hex.js"></script>
+<script src="js/board.js"></script>
+<script src="js/patterns.js"></script>
+<script src="js/sound_packs.js"></script>
+<script src="js/styles.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/ui_sound.js"></script>
+<script src="js/visualizer.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/toast.js"></script>
+<script src="js/pattern_editor.js"></script>
+<script src="js/user_styles.js"></script>
+<script src="js/autosave.js"></script>
+<script src="js/themes.js"></script>
+<script src="js/tutorial.js"></script>
+<script src="js/daily.js"></script>
+<script src="js/presets.js"></script>
+<script src="js/leaderboard.js"></script>
+<script src="js/achievements.js"></script>
+<script src="js/export_wav.js"></script>
+<script src="js/replay.js"></script>
+<script src="js/compose.js"></script>
+<script src="js/ai_composer.js"></script>
+<script src="js/game.js"></script>
+<div id="achv-modal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Достижения</h3>
+    <div id="achv-list"></div>
+    <button id="btn-achv-close">Закрыть</button>
+  </div>
+</div>
+<div id="tutorial" class="modal hidden">
+  <div class="modal-content">
+    <h3 id="tut-title">...</h3>
+    <p id="tut-text" style="margin:12px 0 20px;color:#ccc;"></p>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="tut-skip">Пропустить</button>
+      <button id="tut-next" class="primary">Далее →</button>
+    </div>
+  </div>
+</div>
+<div id="pe-modal" class="modal hidden">
+  <div class="modal-content" style="max-width:560px;">
+    <h3>Редактор паттерна</h3>
+    <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;flex-wrap:wrap;">
+      <label>Секция:</label>
+      <select id="pe-section"></select>
+      <label>Канал:</label>
+      <select id="pe-channel">
+        <option>kick</option><option>snare</option><option>hat</option>
+        <option>bass</option><option>pad</option><option>lead</option><option>arp</option>
+      </select>
+      <label>BPM:</label>
+      <input id="pe-bpm" type="number" min="60" max="200" value="100" style="width:70px;">
+      <button id="pe-play">▶</button>
+      <button id="pe-stop">■</button>
+    </div>
+    <div id="pe-grid" style="display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin-bottom:12px;"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="pe-apply">Применить</button>
+      <button id="pe-close">Закрыть</button>
+    </div>
+  </div>
+</div>
+<div id="lb-modal" class="modal hidden">
+  <div class="modal-content">
+    <h3>Лидеры</h3>
+    <div id="lb-list"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;">
+      <button id="lb-clear">Очистить</button>
+      <button id="lb-close">Закрыть</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

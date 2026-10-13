@@ -37,6 +37,21 @@
 
 Dixi. 7D (Димон), 2026-10-13.
 
+## [2.0.3] - 2026-10-13
+
+### Fixed
+
+- **Портативность messaging + mail_bot:** убран хардкод `C:\DeepSeek`:
+  - `sandbox/portable_root.py` — helper `find_root(__file__)`
+    (ищет вверх до маркера `extension`).
+  - `messaging/core/` — restart_8770, say, svc: ROOT от find_root.
+  - `messaging/mainframe/` — launch_server, server: ROOT от find_root.
+  - `mail_bot/mail_bot.py` — ROOT от find_root (было parent x3,
+    ломалось в jewai).
+  jewai запускается из любой папки (Фаза 1 V5).
+
+Dixi. 7B (Борис), 2026-10-13.
+
 ## [2.0.2] - 2026-10-13
 
 ### Fixed

@@ -23,7 +23,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent.parent  # C:\DeepSeek
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "sandbox"))
+from portable_root import find_root
+ROOT = Path(find_root(__file__))
 HERE = Path(__file__).resolve().parent
 LOG_DIR = HERE / "logs"
 LOG_DIR.mkdir(exist_ok=True)

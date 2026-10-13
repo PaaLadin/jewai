@@ -12,8 +12,11 @@ except Exception:
     pass
 import sys, json, time
 from pathlib import Path
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "sandbox"))
+from portable_root import find_root
 
-CHAT_FILE = Path(r"C:\DeepSeek\sandbox\council_chat\chat.jsonl")
+CHAT_FILE = Path(find_root(__file__)) / "sandbox" / "council_chat" / "chat.jsonl"
 
 def main():
     if len(sys.argv) < 3:

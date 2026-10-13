@@ -3,9 +3,12 @@
 Убивает pid 13384, запускает заново в фоне.
 """
 import os, sys, time, subprocess
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "sandbox"))
+from portable_root import find_root
 
 OLD_PID = 13384
-SERVER = r"C:\DeepSeek\sandbox\council_chat\server.py"
+SERVER = os.path.join(find_root(__file__), "sandbox", "council_chat", "server.py")
 
 # kill
 try:

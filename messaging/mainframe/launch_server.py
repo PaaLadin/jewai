@@ -10,7 +10,7 @@ try:
 except Exception:
     pass
 
-ROOT = Path(r"C:\DeepSeek")
+ROOT = Path(find_root(__file__))
 SRV = ROOT / "sandbox" / "council_chat" / "server.py"
 LOG = ROOT / "sandbox" / "council_chat" / "server_out.log"
 
@@ -31,6 +31,9 @@ print("launched pid=%d log=%s" % (p.pid, LOG))
 time.sleep(2.0)
 # проверка порта
 import socket
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "sandbox"))
+from portable_root import find_root
 s = socket.socket(); s.settimeout(3)
 try:
     s.connect(("127.0.0.1", 8770)); print("port 8770: LISTENING")

@@ -9,6 +9,9 @@
 Пиды в logs/svc/."""
 import sys, os, io, json, time, subprocess, argparse
 from pathlib import Path
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "sandbox"))
+from portable_root import find_root
 
 try:
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -25,7 +28,7 @@ def _nw_flags(detach=False):
         f |= subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
     return f
 
-ROOT = Path(r"C:\DeepSeek")
+ROOT = Path(find_root(__file__))
 SVC_DIR = ROOT / "logs" / "svc"
 SVC_DIR.mkdir(parents=True, exist_ok=True)
 LOG = ROOT / "logs" / "runtime" / "svc.log"

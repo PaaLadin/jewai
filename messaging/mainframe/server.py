@@ -38,8 +38,11 @@ import urllib.parse as _up
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import os, sys
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "sandbox"))
+from portable_root import find_root
 
-ROOT = Path(r"C:\DeepSeek")
+ROOT = Path(find_root(__file__))
 CHAT_DIR = ROOT / "sandbox" / "council_chat"
 CHAT_FILE = CHAT_DIR / "chat.jsonl"
 TODO_DIR = CHAT_DIR / "todos"

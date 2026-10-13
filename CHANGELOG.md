@@ -37,6 +37,20 @@
 
 Dixi. 7D (Димон), 2026-10-13.
 
+## [2.0.2] - 2026-10-13
+
+### Fixed
+
+- **Портативность (Фаза 1 V5):** убран хардкод `C:\DeepSeek`:
+  - `sandbox/cdp_client.py`, `read_panel_state2.py`, `bridge_kick2.py`
+    (ROOT от `__file__`).
+  - `sandbox/find.py` — ROOT от `__file__`.
+  - `sandbox/council_chat/say.py` — CHAT_FILE от `__file__`.
+  Регрессия внесена в v2.0.1 (новые CDP-скрипты с sys.path.insert
+  хардкодом). jewai должен работать из любой папки.
+
+Dixi. 7B (Борис), 2026-10-13.
+
 ## [2.0.1] - 2026-10-13
 
 ### Added

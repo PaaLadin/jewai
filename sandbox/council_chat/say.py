@@ -13,7 +13,7 @@ except Exception:
 import sys, json, time
 from pathlib import Path
 
-CHAT_FILE = Path(r"C:\DeepSeek\sandbox\council_chat\chat.jsonl")
+CHAT_FILE = Path(__file__).resolve().parent / "chat.jsonl"
 
 def main():
     if len(sys.argv) < 3:

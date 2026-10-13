@@ -16,7 +16,7 @@ import fnmatch
 import io
 import os
 
-ROOT = r"C:\DeepSeek"
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 EXCLUDE_DIRS = {
     "git", "backups", "archive", ".git", "__pycache__",

@@ -4,10 +4,11 @@ Usage:
   python sandbox/bridge_kick2.py --port 9223 --text "[A>B] ..." --wait-empty 5
 """
 import argparse
+import os
 import sys
 import time
 
-sys.path.insert(0, r"C:\DeepSeek\sandbox")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cdp_client import CDPSession, find_chat_target
 
 ap = argparse.ArgumentParser()

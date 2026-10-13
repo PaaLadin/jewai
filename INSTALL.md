@@ -51,7 +51,7 @@ JewAI — мост между чатом LLM
 - структуру папок: `sandbox`, `extension`, `launchers`,
   `emergency`, `rag`, `logs`, `runtime`, `.secrets`,
   `templates/agent_logs`;
-- профили Chrome (`chrome-A-data`, `chrome-B-data`, ...);
+- профили Chrome (`runtime/chrome/A`, `runtime/chrome/B`, ...);
 - `config.json` с раскладкой портов, каналов и префиксов;
 - `launchers/` — все `.ps1` под N каналов, включая `boot-all.ps1`
   и `create-shortcut.ps1`;

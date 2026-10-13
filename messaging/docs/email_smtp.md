@@ -14,7 +14,7 @@
 - Sender: `recipient@example.com` (личный)
 - Recipient: `recipient@example.com`
 - Пароль: приложение-пароль (не основной).
-- Файл секрета: `C:\DeepSeek\.smtp_token` (5 строк: host, port,
+- Файл секрета: `<root>\.smtp_token` (5 строк: host, port,
   sender, recipient, password). Бэкап: `.smtp_token.bak_yandex_personal`.
 
 ## Команда

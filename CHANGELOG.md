@@ -4,6 +4,39 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.2.0] - 2026-10-14 (unreleased)
+
+**Native CDP transport, rebirth hardening, multimodel E/F.**
+
+### Added
+- **sandbox/cdp_client.py** — native CDP (HTTP /json/list + websocket).
+  Замена Playwright: не виснет на тяжёлых SPA (qwen/alice).
+- **sandbox/read_panel_state2.py** — состояние панели (0.1-3с vs timeout).
+- **sandbox/bridge_kick2.py** — кик в чат нативно (Input.insertText).
+- **sandbox/activate_chat.py** — активация чата (fill+attach+send).
+- **sandbox/rebirth_master.py**, **la_watchdog.py**, **rebirth.py**,
+  **rebirth_cdp.py**, **rebirth_onboard.py**, **rebirth_ready.py**,
+  **rebirth_table.py** — автомат перерождения агента.
+- **sandbox/chat_limit.py** — детект переполнения чата (баннер).
+- **sandbox/set_hold.py** — hold-режим канала (порог отключён).
+- **sandbox/sync_session_start.py** — синк session_*.json из series_table.
+- **sandbox/new_chat_native.py**, **fix_profile_exit.py**.
+- **rag/procedures/rebirth.md**, **cdp_transport.md** — процедуры.
+
+### Changed
+- Портативность: ROOT от __file__ (find_root) во всех новых скриптах.
+- Мультимодельность: extension_qwen/extension_alice — sidePanel
+  permission, порты 8771/8772, домены в sidepanel.js.
+- Launchers: start-<L>.ps1 per-channel extension + URL по модели.
+
+### Fixed
+- Rebirth: порог-гейт (cmds<850 -> отклонено), limit-детект
+  (переполнение важнее порога), series_table обновляется.
+- startId-рассинхрон session_*.json.
+- stop-all graceful (без "восстановить вкладки").
+
+---
+
 ## [2.1.0] - 2026-10-13
 
 **hexxagon_music — игра-настолка с музыкальным трекером (аддон).**

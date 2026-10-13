@@ -6,13 +6,15 @@ _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
                                        "council_chat") else _HERE
 ICONS = ROOT / "icons"
-CHROME = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+import os as _os
+CHROME = _os.path.join(_os.environ.get("PROGRAMFILES", r"C:\Program Files"),
+                       "Google", "Chrome", "Application", "chrome.exe")
 DESK = Path.home() / "Desktop"
 PROFILES = {
-    "A": ("chrome-A-data", 9222, "AAAA"),
-    "B": ("chrome-B-data", 9223, "BBAA"),
-    "C": ("chrome-C-data", 9224, "CCAA"),
-    "D": ("chrome-D-data", 9225, "DDAA"),
+    "A": ("runtime/chrome/A", 9222, "AAAA"),
+    "B": ("runtime/chrome/B", 9223, "BBAA"),
+    "C": ("runtime/chrome/C", 9224, "CCAA"),
+    "D": ("runtime/chrome/D", 9225, "DDAA"),
 }
 for ch, (prof, cdp, pref) in PROFILES.items():
     lnk = DESK / ("JewAI %s.lnk" % ch)

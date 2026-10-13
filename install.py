@@ -231,7 +231,7 @@ def main():
         print("  + корневые файлы: пропущено")
     print(f"  Всего скопировано: {total}")
 
-    # 3. Папки агентов (logs/<L>/, chrome-<L>-data/)
+    # 3. папки агентов (logs/<L>/, runtime/chrome/<L>)
     tpl = root / "templates" / "agent_logs"
     for L in LETTERS[:n]:
         d = root / "logs" / L
@@ -242,7 +242,7 @@ def main():
                 src = tpl / t
                 if src.exists() and not (d / t).exists():
                     shutil.copy2(src, d / t)
-        (root / f"chrome-{L}-data").mkdir(exist_ok=True)
+        (root / "runtime" / "chrome" / L).mkdir(parents=True, exist_ok=True)
 
     # 4. .agent_token — не перезаписываем, если уже есть
     tok = root / ".agent_token"

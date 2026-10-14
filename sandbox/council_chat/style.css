@@ -355,3 +355,174 @@ html,body{
 #btnVoice.on{color:#0a0e14;background:#00ff66;box-shadow:0 0 14px #00ff66}
 #btnVoice.disabled{opacity:.3;cursor:not-allowed}
 #voiceHint{font-size:11px;color:#8aa;padding:2px 6px;min-height:14px}
+.pers-wrap{display:flex;height:100%;gap:8px}
+.pers-list{width:180px;background:#061206;border:1px solid #0a8a3a;border-radius:6px;padding:6px;overflow-y:auto}
+.pers-item{padding:8px 10px;margin:2px 0;cursor:pointer;border-radius:4px;font-family:monospace}
+.pers-item.active{background:#0a2a1a}
+.pers-chat{flex:1;display:flex;flex-direction:column;background:#061206;border:1px solid #0a8a3a;border-radius:6px}
+.pers-title{padding:8px 12px;border-bottom:1px solid #0a8a3a;font-weight:bold}
+#persFeed{flex:1;overflow-y:auto;padding:8px 12px;font-family:monospace;font-size:13px}
+.pers-h{color:#33d6ff;margin-right:4px;font-weight:bold}
+.pers-msg{margin:4px 0;line-height:1.4}
+.pers-msg.from-operator .pers-h{color:#f1c40f;font-weight:bold}
+.pers-msg.from-operator .pers-text{color:#fff}
+.pers-msg.from-agent .pers-h{color:#33d6ff;font-weight:bold}
+.pers-msg.from-agent .pers-text{color:#4a8a5a}
+.pers-composer{display:flex;gap:6px;padding:6px;border-top:1px solid #0a8a3a}
+.pers-composer textarea{flex:1;resize:none;height:38px;background:#0a1a0e;color:#cfe;border:1px solid #0a8a3a}
+.pers-composer button{background:#0a1a0e;color:#33d6ff;border:1px solid #33d6ff;padding:0 12px;cursor:pointer}
+
+/* ===== PROJECTS (таб) ===== */
+.projects-wrap{flex:1;display:flex;min-height:0;padding-top:10px}
+#projectsFrame{
+  flex:1;min-width:0;width:100%;
+  border:1px solid var(--green-dim);
+  background:rgba(0,20,8,0.25);
+  box-shadow:inset 0 0 40px rgba(0,255,102,0.05);
+}
+
+
+/* ===== LOCAL AI TAB ===== */
+.la-wrap {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  height: 100%;
+  box-sizing: border-box;
+}
+.la-chat {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid #0a8a3a;
+  background: rgba(0, 20, 8, 0.4);
+}
+.la-title {
+  padding: 8px 12px;
+  border-bottom: 1px solid #0a8a3a;
+  color: #00ff66;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+#laFeed {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 12px;
+  font-family: Consolas, monospace;
+}
+.la-msg { margin-bottom: 10px; }
+.la-who { font-size: 10px; letter-spacing: 1px; margin-bottom: 2px; }
+.la-user .la-who { color: #f1c40f; }
+.la-ai .la-who { color: #33d6ff; }
+.la-body { white-space: pre-wrap; font-size: 13px; line-height: 1.4; }
+.la-user .la-body { color: #fff; }
+.la-ai .la-body { color: #4a8a5a; }
+.la-sys { color: #888; font-size: 11px; font-style: italic; }
+.la-composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid #0a8a3a;
+}
+.la-composer .prompt { color: #00ff66; }
+.la-composer textarea {
+  flex: 1 1 auto;
+  background: #04100a;
+  color: #00ff66;
+  border: 1px solid #0a8a3a;
+  padding: 6px 8px;
+  resize: none;
+  height: 44px;
+  font-family: Consolas, monospace;
+  outline: none;
+}
+.la-composer button {
+  background: #04100a;
+  color: #00ff66;
+  border: 1px solid #0a8a3a;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-family: Consolas, monospace;
+}
+.la-composer button:hover { background: #0a8a3a; color: #04100a; }
+.la-panel {
+  flex: 0 0 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+.la-ind-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: #9fd4b0;
+}
+.la-lamp {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #333;
+  box-shadow: 0 0 0 rgba(0,0,0,0);
+}
+.la-lamp.on { background: #00ff66; box-shadow: 0 0 8px #00ff66; }
+.la-lamp.off { background: #8a1a1a; box-shadow: 0 0 4px #8a1a1a; }
+.la-param {
+  padding: 4px 0;
+  font-size: 12px;
+  color: #9fd4b0;
+}
+.la-param label { display: block; margin-bottom: 4px; }
+.la-param b { color: #00ff66; }
+.la-param input[type=range] {
+  width: 100%;
+  accent-color: #00ff66;
+}
+.la-tools { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: #9fd4b0; }
+.la-tools label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.la-tools input[type=checkbox] { accent-color: #00ff66; }
+.la-ctrl { display: flex; flex-direction: column; gap: 6px; }
+.la-ctrl .pbtn { width: 100%; font-size: 11px; padding: 8px; }
+
+/* ===== LAUNCHPAD (B) ===== */
+.lp-wrap{position:relative;width:100%;height:100%;display:flex;flex-direction:column}
+#lpMnemo{flex:1 1 auto;min-height:0;width:100%;display:block;background:radial-gradient(circle at 50% 40%,#0e1a0e,#050805)}
+.lp-state{position:absolute;top:8px;right:14px;color:#bfffbf;background:#0c160c;border:1px solid #1b4a1b;padding:3px 8px;font-size:11px}
+.lp-net{position:absolute;top:8px;left:14px;color:#7dff7d;font-size:11px}
+.lp-net b{color:#bfffbf}
+.lp-logbox{flex:0 0 auto;margin:4px 10px 6px;height:88px;background:#040704;border:1px solid #1b4a1b;padding:4px 8px;overflow:auto;font-size:11px;color:#7fdc7f}
+.lp-blk .lp-box{fill:#0d1a0d;stroke:#2a5a2a;stroke-width:1.5}
+.lp-blk.on .lp-box{stroke:#3fd23f}
+.lp-blk.off .lp-box{stroke:#5a2a2a}
+.lp-nm{fill:#cfdfff;font-size:15px;font-weight:bold}
+.lp-pt{fill:#6a8a6a;font-size:12px}
+.lp-lamp{stroke:#0a0a0a;stroke-width:1}
+.lp-lamp.on{fill:#3fd23f}
+.lp-lamp.off{fill:#3a1010}
+.lp-lamp.ping{fill:#8aff8a}
+.lp-btn{fill:#122012;stroke:#2a5a2a;cursor:pointer}
+.lp-btn:hover{fill:#1c3a1c}
+.lp-btn.dis{fill:#1a1a1a;stroke:#333;cursor:not-allowed}
+.lp-btnt{fill:#9fdf9f;font-size:11px;pointer-events:none;text-anchor:middle}
+.lp-run{cursor:pointer}
+.lp-runc{fill:#2a0a0a;stroke:#d23f3f;stroke-width:2.5}
+.lp-run:hover .lp-runc{fill:#3d1010}
+.lp-runt{fill:#ff9f9f;font-size:18px;font-weight:bold}
+
+.lp-runc{fill:#1a0a0a;stroke:#d23f3f;stroke-width:2.5}
+.lp-runc.run-ok{fill:#0a2a0a;stroke:#3fd23f;stroke-width:3}
+.lp-runc.run-busy{fill:#2a2a0a;stroke:#ffe066;stroke-width:3}
+.lp-runc.run-off{fill:#1a0a0a;stroke:#d23f3f;stroke-width:2.5}
+.lp-stopbox{fill:#1a0a0a;stroke:#d23f3f;stroke-width:2}
+.lp-stopbox.stop-on{stroke:#d23f3f;fill:#2a0a0a}
+.lp-stopbox.stop-busy{stroke:#ffe066;fill:#2a2a0a;animation:lpblink .7s infinite}
+.lp-stopbox.stop-idle{stroke:#3a3a3a;fill:#0d0d0d}
+.lp-stopt{fill:#ff9f9f;font-size:12px;font-weight:bold;pointer-events:none}
+.lp-stopt.stop-busy-t{fill:#ffe066}
+.lp-g-stop{cursor:pointer}
+@keyframes lpblink{0%,100%{opacity:1}50%{opacity:.35}}

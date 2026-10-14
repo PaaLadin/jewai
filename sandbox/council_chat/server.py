@@ -39,26 +39,30 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# --- Портирование (jewai): ROOT от файла, порты из config.json ---
+# --- Портативность: ROOT от файла (sandbox/council_chat/server.py) ---
 _HERE = Path(__file__).resolve().parent  # sandbox/council_chat/
 ROOT = _HERE.parent.parent
 CHAT_DIR = ROOT / "sandbox" / "council_chat"
-
-_cfg = {}
-_cfg_path = ROOT / "config.json"
-if _cfg_path.exists():
-    try:
-        _cfg = json.loads(_cfg_path.read_text(encoding="utf-8"))
-    except Exception as _e:
-        print("config.json read err:", _e)
-
 CHAT_FILE = CHAT_DIR / "chat.jsonl"
 TODO_DIR = CHAT_DIR / "todos"
 TODO_DIR.mkdir(parents=True, exist_ok=True)
 
+# --- Портирование: PORT и BIND из config.json ---
+_cfg = {}
+_cfg_path = ROOT / "config.json"
+if _cfg_path.exists():
+    try:
+        import json as _json
+        _cfg = _json.loads(_cfg_path.read_text(encoding="utf-8"))
+    except Exception:
+        _cfg = {}
+
 PORT = int(_cfg.get("chat_port", 8770))
 BIND = str(_cfg.get("bind", "127.0.0.1"))
-BRIDGE_KICK = ROOT / "sandbox" / "bridge_kick.py"
+BRIDGE_KICK2 = ROOT / "sandbox" / "bridge_kick2.py"
+BRIDGE_KICK3 = ROOT / "sandbox" / "bridge_kick3.py"
+# SPA-каналы (Qwen/Alice): Enter не берётся, нужен kick3 (клик send).
+SPA_CDP_PORTS = {9226, 9227}
 MEETING_FILE = CHAT_DIR / "meeting.json"
 PAUSE_ALL_FILE = CHAT_DIR / "pause_all.json"
 FLAGS_DIR = CHAT_DIR / "flags"
@@ -66,46 +70,37 @@ FLAGS_DIR.mkdir(parents=True, exist_ok=True)
 HEALTH_TTL = 60
 CDP_TIMEOUT = 6
 
-
-def _build_channels(cfg):
-    colors = ["#00ff66", "#33d6ff", "#c573ff", "#ffb000",
-              "#ff5577", "#55ffd0", "#ffaa33", "#88aaff",
-              "#ddaaff", "#aaff88"]
-    dnames = {"A": "Аркадий", "B": "Борис", "C": "Семён", "D": "Димон"}
-    letters = cfg.get("letters", list("ABCD"))
-    ch_in = cfg.get("channels", {})
-    ch = {}
-    pre = {}
-    for i, L in enumerate(letters):
-        info = ch_in.get(L, {}) if isinstance(ch_in, dict) else {}
-        ch[L] = {
-            "name": info.get("name", dnames.get(L, "Агент " + L)),
-            "agent": int(info.get("agent", 8760 + i)),
-            "cdp": int(info.get("cdp", 9220 + i)),
-            "color": colors[i % len(colors)],
-            "todo": "TODO_" + L + ".md",
+# Карта каналов — из config.json (N каналов, V5). Fallback — A-D.
+_PALETTE = ["#00ff66", "#33d6ff", "#c573ff", "#ffb000", "#4ecdc4",
+            "#f7b731", "#a55eea", "#26de81", "#fc5c65", "#45aaf2"]
+CHANNELS = {}
+CHANNEL_PREFIXES = {}
+try:
+    _cc = json.loads((ROOT / "config.json").read_text(encoding="utf-8"))
+    for _i, (_L, _v) in enumerate(_cc.get("channels", {}).items()):
+        CHANNELS[_L] = {
+            "name": _v.get("name", _L),
+            "agent": int(_v.get("agent", 0)),
+            "cdp": int(_v.get("cdp", 0)),
+            "color": _v.get("color", _PALETTE[_i % len(_PALETTE)]),
+            "todo": _v.get("todo", "TODO_%s.md" % _L),
         }
-        pre[L] = info.get("prefix", "AAAA" if L == "A" else (L + L + "AA"))
-    return ch, pre
-
-
-if _cfg:
-    CHANNELS, CHANNEL_PREFIXES = _build_channels(_cfg)
-else:
+        CHANNEL_PREFIXES[_L] = _v.get("prefix", _L + _L + "AA")
+except Exception:
     CHANNELS = {
-        "A": {"name": "Аркадий", "agent": 8766, "cdp": 9222,
-              "color": "#00ff66", "todo": "TODO_A.md"},
-        "B": {"name": "Борис", "agent": 8767, "cdp": 9223,
-              "color": "#33d6ff", "todo": "TODO_B.md"},
-        "C": {"name": "Семён", "agent": 8768, "cdp": 9224,
-              "color": "#c573ff", "todo": "TODO_C.md"},
-        "D": {"name": "Димон", "agent": 8769, "cdp": 9225,
-              "color": "#ffb000", "todo": "TODO_D.md"},
+        "A": {"name": "Аркадий", "agent": 8766, "cdp": 9222, "color": "#00ff66", "todo": "TODO_A.md"},
+        "B": {"name": "Борис",   "agent": 8767, "cdp": 9223, "color": "#33d6ff", "todo": "TODO_B.md"},
+        "C": {"name": "Семён",   "agent": 8768, "cdp": 9224, "color": "#c573ff", "todo": "TODO_C.md"},
+        "D": {"name": "Дима",    "agent": 8769, "cdp": 9225, "color": "#ffb000", "todo": "TODO_D.md"},
     }
-    CHANNEL_PREFIXES = {"A": "AAAA", "B": "BBAA",
-                        "C": "CCAA", "D": "DDAA"}
+    CHANNEL_PREFIXES = {"A": "AAAA", "B": "BBAA", "C": "CCAA", "D": "DDAA"}
 
-CHANNELS_WITH_RISK = (list(CHANNELS.keys())[:1] or ("A",))
+# Пороги risk-лампы — эмпирика (1A.5: 844, 2A: 1437).
+# Применяются ТОЛЬКО к каналу A.
+RISK_WARN = 500    # жёлтый от
+RISK_RED = 800     # красный от
+RISK_ALARM = 1200  # мигание от
+CHANNELS_WITH_RISK = ("A",)
 
 # Источник startId — logs/session_<CH>.json (формат: {"start": "AAAA4000"}).
 # Если файл отсутствует — start = None, лампа серая.
@@ -176,8 +171,9 @@ def _no_window_flags(detach=False):
 
 def kick(port, text):
     try:
+        _kick_script = BRIDGE_KICK3 if int(port) in SPA_CDP_PORTS else BRIDGE_KICK2
         subprocess.Popen(
-            [_sys.executable, str(BRIDGE_KICK), "--port", str(port), "--text", text, "--wait-empty", "10"],
+            [_sys.executable, str(_kick_script), "--port", str(port), "--text", text, "--wait-empty", "10"],
             cwd=str(ROOT),
             creationflags=_no_window_flags(detach=True),
             stdin=subprocess.DEVNULL,
@@ -415,6 +411,7 @@ def collect_status():
             "svc_watchdog": svc_wd,
             "svc_recovery": svc_rec,
             "svc_params": svc_prm,
+            "alive_button": alive_button_state(ch_key, now),
         }
 
     links = {}
@@ -596,13 +593,13 @@ def _pid_alive(pid, expect=None):
             creationflags=_no_window_flags())
         out = (r.stdout or "").strip()
         if not out or len(out.splitlines()) < 2:
-            return False
+            return False  # процесса с таким pid нет
         row = out.splitlines()[1]
         low = row.lower()
         if "python" not in low and "pythonw" not in low:
-            return False
+            return False  # pid занят чужим процессом (chrome.exe и т.п.)
         if expect and expect.lower() not in low:
-            return False
+            return False  # python есть, но не наш скрипт
         return True
     except Exception:
         return None
@@ -611,8 +608,9 @@ def _pid_alive(pid, expect=None):
 def read_svc_state(ch_key):
     """Читает logs/svc/<kind>_<CH>.json. Возвращает (wd, rec).
 
-    state=on без живого pid -> False (сервис не работает).
-    Файла нет -> null (не запускался).
+    Поле state=on без живого pid НЕ считается запущенным:
+    упавший процесс оставил бы on навсегда. Если pid мёртв —
+    возвращаем False (сервис не работает), не None.
     """
     svc_dir = ROOT / "logs" / "svc"
     wd = None
@@ -627,6 +625,7 @@ def read_svc_state(ch_key):
             if state == "on":
                 expect = "watchdog.py" if kind == "watchdog" else "recovery_loop.py"
                 alive = _pid_alive(d.get("pid"), expect)
+                # alive is True -> on; False (pid мёртв/чужой) -> off; None -> доверяем state
                 val = False if alive is False else True
             else:
                 val = False
@@ -764,6 +763,380 @@ def flag_path(ch):
     return FLAGS_DIR / ("alive_%s.json" % ch)
 
 
+
+
+def scan_projects():
+    """Сканирует ROADMAP.html в game/ и project/<name>/."""
+    out = []
+    # 1. game/
+    g = ROOT / "game" / "ROADMAP.html"
+    if g.exists():
+        st = g.stat()
+        out.append({
+            "name": "game",
+            "title": "Тредчанин",
+            "description": "Браузерный платформер, пилот Полесье",
+            "url": "/roadmap/game",
+            "mtime": st.st_mtime,
+            "size": st.st_size,
+        })
+    # 2. project/<name>/
+    pdir = ROOT / "project"
+    if pdir.exists():
+        for d in sorted(pdir.iterdir()):
+            if not d.is_dir():
+                continue
+            rm = d / "ROADMAP.html"
+            if rm.exists():
+                st = rm.stat()
+                out.append({
+                    "name": d.name,
+                    "title": d.name,
+                    "description": "",
+                    "url": "/roadmap/" + d.name,
+                    "mtime": st.st_mtime,
+                    "size": st.st_size,
+                })
+    return out
+
+
+LOCALAI_SERVER = "http://127.0.0.1:8090"
+LOCALAI_LLAMA = "http://127.0.0.1:8081"
+
+
+def _localai_http_get(url, timeout=3):
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as r:
+            return r.status, r.read()
+    except Exception:
+        return None, None
+
+
+def collect_localai_status():
+    """Статус local_ai: llama-server, оркестратор, модель, RAG."""
+    llama_ok = False
+    model_ok = False
+    srv_ok = False
+    rag_ok = False
+
+    # llama-server :8081/v1/models
+    s, body = _localai_http_get(LOCALAI_LLAMA + "/v1/models", timeout=2)
+    if s == 200 and body:
+        llama_ok = True
+        try:
+            j = json.loads(body.decode("utf-8", "replace"))
+            if j.get("data"):
+                model_ok = True
+        except Exception:
+            pass
+
+    # оркестратор :8090/health
+    s, body = _localai_http_get(LOCALAI_SERVER + "/health", timeout=2)
+    if s == 200:
+        srv_ok = True
+
+    # RAG-индекс
+    rag_dir = ROOT / "projects" / "local_ai" / "rag_index"
+    if (rag_dir / "index.faiss").exists() and (rag_dir / "meta.json").exists():
+        rag_ok = True
+
+    return {"ok": True, "llama": llama_ok, "server": srv_ok,
+            "model": model_ok, "rag": rag_ok}
+
+
+
+# ===== LAUNCHPAD_BLOCK (B, additive) =====
+# Пульт управления: boot/stop/restart сервисов и агентов.
+# Живой сервер = пилот (self), его boot/restart запрещены, stop - только
+# с явного подтверждения оператора (не через каскад).
+
+LP_AGENT_SCRIPT = ROOT / "extension" / "agent.py"
+LP_SERVER_SCRIPT = ROOT / "sandbox" / "council_chat" / "server.py"
+LP_DOH_SCRIPT = ROOT / "sandbox" / "doh_proxy.py"
+LP_MAILBOT_SCRIPT = ROOT / "projects" / "mail_bot" / "mail_bot.py"
+LP_WATCHDOG_SCRIPT = ROOT / "sandbox" / "la_watchdog.py"
+
+
+_lp_snap_cache = {"ts": 0.0, "rows": []}
+
+
+def _lp_ps(cmd):
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd],
+                           capture_output=True, text=True, timeout=10,
+                           encoding="utf-8", errors="replace",
+                           creationflags=_no_window_flags())
+        return (r.stdout or "").strip()
+    except Exception:
+        return ""
+
+
+def _lp_snapshot():
+    """Один снимок процессов (python/pythonw/chrome) с CommandLine.
+    Кэш 2с, чтобы не звать PowerShell 15 раз на каждый запрос.
+    Возвращает список (pid, name_lower, cmdline_lower)."""
+    now = time.time()
+    c = _lp_snap_cache
+    if c["rows"] and (now - c["ts"]) < 2.0:
+        return c["rows"]
+    cmd = ("Get-CimInstance Win32_Process | "
+           "Where-Object { $_.Name -eq 'python.exe' -or $_.Name -eq 'pythonw.exe' "
+           "-or $_.Name -eq 'chrome.exe' } | "
+           "ForEach-Object { $_.ProcessId.ToString() + '|' + $_.Name + '|' + $_.CommandLine }")
+    out = _lp_ps(cmd)
+    rows = []
+    for ln in out.splitlines():
+        parts = ln.split("|", 2)
+        if len(parts) == 3 and parts[0].strip().isdigit():
+            rows.append((int(parts[0]), parts[1].lower(), (parts[2] or "").lower()))
+    c["ts"] = now
+    c["rows"] = rows
+    return rows
+
+
+def _lp_pids_for(marker, also=None):
+    """pid процессов python/pythonw, в CommandLine которых marker (и also)."""
+    m = marker.lower()
+    a = also.lower() if also else None
+    out = []
+    for pid, name, cl in _lp_snapshot():
+        if "python" not in name:
+            continue
+        if m in cl and (a is None or a in cl):
+            out.append(pid)
+    return out
+
+
+def _lp_chrome_pids(letter):
+    prof = ("runtime\\chrome\\%s" % letter).lower()
+    out = []
+    for pid, name, cl in _lp_snapshot():
+        if name != "chrome.exe":
+            continue
+        if prof in cl:
+            out.append(pid)
+    return out
+
+
+def _lp_kill(pid):
+    try:
+        subprocess.run(["taskkill", "/PID", str(int(pid)), "/T", "/F"],
+                       capture_output=True, timeout=10,
+                       creationflags=_no_window_flags())
+    except Exception:
+        pass
+
+
+def _lp_spawn(args, cwd):
+    try:
+        p = subprocess.Popen(args, cwd=str(cwd), stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             creationflags=_no_window_flags(detach=True))
+        return p.pid
+    except Exception as e:
+        return None
+
+
+def _lp_pythonw():
+    exe = _sys.executable
+    if exe.lower().endswith("python.exe"):
+        cand = exe[:-len("python.exe")] + "pythonw.exe"
+        if Path(cand).exists():
+            return cand
+    return exe
+
+
+def _lp_agent_port(L):
+    ch = CHANNELS.get(L)
+    return int(ch["agent"]) if ch else None
+
+
+def _lp_cdp_port(L):
+    ch = CHANNELS.get(L)
+    return int(ch["cdp"]) if ch else None
+
+
+def lp_status():
+    out = {"ok": True, "ts": time.time(), "blocks": {}}
+    # server (self)
+    out["blocks"]["server"] = {"on": True, "self": True, "port": PORT}
+    # агенты
+    for L in CHANNELS:
+        port = _lp_agent_port(L)
+        pids = _lp_pids_for("agent.py", str(port))
+        pinfo = ping_agent(port) if pids else None
+        out["blocks"]["agent:" + L] = {"on": bool(pids), "port": port,
+                                       "ping": bool(pinfo), "pids": pids}
+    # chrome
+    for L in CHANNELS:
+        cdp = _lp_cdp_port(L)
+        pids = _lp_chrome_pids(L)
+        alive = False
+        if pids:
+            try:
+                with urllib.request.urlopen("http://127.0.0.1:%d/json/version" % cdp, timeout=2) as r:
+                    alive = r.status == 200
+            except Exception:
+                alive = False
+        out["blocks"]["chrome:" + L] = {"on": bool(pids), "port": cdp,
+                                        "tcp": tcp_alive(cdp) if pids else False,
+                                        "cdp_ok": alive, "pids": pids}
+    # доп-сервисы
+    doh_pids = _lp_pids_for("doh_proxy")
+    out["blocks"]["doh"] = {"on": bool(doh_pids), "port": 9999,
+                            "tcp": tcp_alive(9999) if doh_pids else False, "pids": doh_pids}
+    mb_pids = _lp_pids_for("mail_bot")
+    out["blocks"]["mailbot"] = {"on": bool(mb_pids), "pids": mb_pids}
+    wd_pids = _lp_pids_for("la_watchdog")
+    out["blocks"]["rebirth"] = {"on": bool(wd_pids), "pids": wd_pids,
+                                "name": "Перерождение"}
+    try:
+        _la = collect_localai_status()
+        lada_on = bool(_la.get("llama") or _la.get("server"))
+        out["blocks"]["lada"] = {"on": lada_on, "llama": _la.get("llama"),
+                                 "server": _la.get("server"),
+                                 "rag": _la.get("rag"), "info_only": True,
+                                 "name": "Лада (local_ai)"}
+    except Exception:
+        out["blocks"]["lada"] = {"on": False, "info_only": True,
+                                 "name": "Лада (local_ai)"}
+    return out
+
+
+def lp_boot(target):
+    if target == "all":
+        res = []
+        res.append(lp_boot("doh"))
+        for L in CHANNELS:
+            res.append(lp_boot("agent:" + L))
+        for L in CHANNELS:
+            res.append(lp_boot("chrome:" + L))
+        res.append(lp_boot("mailbot"))
+        res.append(lp_boot("rebirth"))
+        return {"ok": True, "target": "all", "results": res}
+    if target == "server":
+        return {"ok": False, "target": target, "error": "server is the pilot, cannot boot self"}
+    if target.startswith("agent:"):
+        L = target.split(":", 1)[1]
+        if L not in CHANNELS:
+            return {"ok": False, "target": target, "error": "bad letter"}
+        port = _lp_agent_port(L)
+        if _lp_pids_for("agent.py", str(port)):
+            return {"ok": True, "target": target, "already": True}
+        pid = _lp_spawn([_lp_pythonw(), str(LP_AGENT_SCRIPT), str(port)],
+                        LP_AGENT_SCRIPT.parent)
+        return {"ok": bool(pid), "target": target, "pid": pid}
+    if target.startswith("chrome:"):
+        L = target.split(":", 1)[1]
+        if L not in CHANNELS:
+            return {"ok": False, "target": target, "error": "bad letter"}
+        cdp = _lp_cdp_port(L)
+        if _lp_chrome_pids(L):
+            return {"ok": True, "target": target, "already": True}
+        chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        prof = ROOT / "runtime" / "chrome" / L
+        ext_name = CHANNELS.get(L, {}).get("extension", "extension")
+        ext = ROOT / ext_name
+        args = [chrome, "--user-data-dir=%s" % prof,
+                "--remote-debugging-port=%d" % cdp,
+                "--load-extension=%s" % ext,
+                "--proxy-server=127.0.0.1:9999",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-renderer-backgrounding",
+                "--disable-background-timer-throttling",
+                "--no-first-run", "--no-default-browser-check",
+                "--restore-last-session"]
+        pid = _lp_spawn(args, ROOT)
+        return {"ok": bool(pid), "target": target, "pid": pid}
+    if target == "doh":
+        if _lp_pids_for("doh_proxy"):
+            return {"ok": True, "target": target, "already": True}
+        pid = _lp_spawn([_lp_pythonw(), str(LP_DOH_SCRIPT), "--port", "9999"],
+                        LP_DOH_SCRIPT.parent)
+        return {"ok": bool(pid), "target": target, "pid": pid}
+    if target == "mailbot":
+        if _lp_pids_for("mail_bot"):
+            return {"ok": True, "target": target, "already": True}
+        if not LP_MAILBOT_SCRIPT.exists():
+            return {"ok": False, "target": target, "error": "no script"}
+        pid = _lp_spawn([_lp_pythonw(), str(LP_MAILBOT_SCRIPT), "--loop"],
+                        LP_MAILBOT_SCRIPT.parent)
+        return {"ok": bool(pid), "target": target, "pid": pid}
+    if target == "rebirth":
+        if _lp_pids_for("la_watchdog"):
+            return {"ok": True, "target": target, "already": True}
+        if not LP_WATCHDOG_SCRIPT.exists():
+            return {"ok": False, "target": target, "error": "no script"}
+        pid = _lp_spawn([_lp_pythonw(), str(LP_WATCHDOG_SCRIPT), "--loop", "1200",
+                         "--rebirth-monitor"], LP_WATCHDOG_SCRIPT.parent)
+        return {"ok": bool(pid), "target": target, "pid": pid}
+    if target == "lada":
+        return {"ok": False, "target": target, "error": "lada info only (управление через вкладку Локальный AI)"}
+    return {"ok": False, "target": target, "error": "unknown target"}
+
+
+def lp_stop(target):
+    if target == "all":
+        res = []
+        res.append(lp_stop("rebirth"))
+        res.append(lp_stop("mailbot"))
+        for L in reversed(list(CHANNELS.keys())):
+            res.append(lp_stop("chrome:" + L))
+        for L in reversed(list(CHANNELS.keys())):
+            res.append(lp_stop("agent:" + L))
+        res.append(lp_stop("doh"))
+        res.append({"ok": True, "target": "server", "note": "self not killed in cascade"})
+        return {"ok": True, "target": "all", "results": res}
+    if target == "server":
+        return {"ok": False, "target": target, "error": "server stop requires explicit operator action"}
+    if target.startswith("agent:"):
+        L = target.split(":", 1)[1]
+        port = _lp_agent_port(L)
+        pids = _lp_pids_for("agent.py", str(port))
+        for p in pids:
+            _lp_kill(p)
+        return {"ok": True, "target": target, "stopped": pids}
+    if target.startswith("chrome:"):
+        L = target.split(":", 1)[1]
+        pids = _lp_chrome_pids(L)
+        for p in pids:
+            _lp_kill(p)
+        return {"ok": True, "target": target, "stopped": pids}
+    if target == "doh":
+        pids = _lp_pids_for("doh_proxy")
+        for p in pids:
+            _lp_kill(p)
+        return {"ok": True, "target": target, "stopped": pids}
+    if target == "mailbot":
+        pids = _lp_pids_for("mail_bot")
+        for p in pids:
+            _lp_kill(p)
+        return {"ok": True, "target": target, "stopped": pids}
+    if target == "rebirth":
+        pids = _lp_pids_for("la_watchdog")
+        for p in pids:
+            _lp_kill(p)
+        return {"ok": True, "target": target, "stopped": pids}
+    if target == "lada":
+        return {"ok": False, "target": target, "error": "lada info only"}
+    return {"ok": False, "target": target, "error": "unknown target"}
+
+
+def lp_restart(target):
+    if target == "all":
+        lp_stop("all")
+        time.sleep(0.8)
+        return lp_boot("all")
+    if target == "server":
+        return {"ok": False, "target": target, "error": "server restart is not allowed (pilot)"}
+    lp_stop(target)
+    time.sleep(0.5)
+    return lp_boot(target)
+
+
+# ===== /LAUNCHPAD_BLOCK =====
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, *a, **kw):
         pass
@@ -813,6 +1186,30 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, p.read_text(encoding="utf-8"), "text/html; charset=utf-8")
             else:
                 self._send(404, "not found", "text/plain")
+        elif self.path == "/api/projects":
+            self._send(200, {"ok": True, "projects": scan_projects()})
+        elif self.path.startswith("/roadmap/"):
+            name = self.path.split("/roadmap/", 1)[1].split("?")[0]
+            # /roadmap/game -> game/ROADMAP.html
+            # /roadmap/<name> -> project/<name>/ROADMAP.html
+            cand = []
+            if name == "game":
+                cand.append(ROOT / "game" / "ROADMAP.html")
+            cand.append(ROOT / "project" / name / "ROADMAP.html")
+            rm_file = None
+            for c in cand:
+                if c.exists():
+                    rm_file = c
+                    break
+            if rm_file:
+                body = rm_file.read_bytes()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
+            self.send_response(404); self.end_headers(); return
         elif self.path == "/roadmap.html" or self.path == "/roadmap":
             rm_file = ROOT / "game" / "ROADMAP.html"
             if rm_file.exists():
@@ -841,20 +1238,42 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/app.js":
             p = CHAT_DIR / "app.js"
             self._send(200, p.read_text(encoding="utf-8"), "application/javascript; charset=utf-8")
+        elif self.path == "/pers.js":
+            p = CHAT_DIR / "pers.js"
+            if p.exists():
+                self._send(200, p.read_text(encoding="utf-8"), "application/javascript; charset=utf-8")
+            else:
+                self._send(404, "no pers", "text/plain")
         elif self.path == "/mnemo.js":
             p = CHAT_DIR / "mnemo.js"
             if p.exists():
                 self._send(200, p.read_text(encoding="utf-8"), "application/javascript; charset=utf-8")
             else:
                 self._send(404, "no mnemo", "text/plain")
+        elif self.path == "/launchpad_live.js":
+            p = CHAT_DIR / "launchpad_live.js"
+            if p.exists():
+                self._send(200, p.read_text(encoding="utf-8"), "application/javascript; charset=utf-8")
+            else:
+                self._send(404, "no launchpad", "text/plain")
+        elif self.path == "/localai.js":
+            p = CHAT_DIR / "localai.js"
+            if p.exists():
+                self._send(200, p.read_text(encoding="utf-8"), "application/javascript; charset=utf-8")
+            else:
+                self._send(404, "no localai", "text/plain")
         elif self.path.startswith("/api/messages"):
             self._send(200, load_messages())
         elif self.path.startswith("/api/activity"):
             q = _up.parse_qs(self.path.split("?", 1)[1]) if "?" in self.path else {}
             since = float(q.get("since", ["0"])[0]) if q.get("since") else None
             self._send(200, collect_activity(since))
+        elif self.path == "/api/launchpad/status":
+            self._send(200, lp_status())
         elif self.path == "/api/status":
             self._send(200, collect_status())
+        elif self.path == "/api/localai/status":
+            self._send(200, collect_localai_status())
         elif self.path == "/api/meeting":
             on = False
             try:
@@ -977,6 +1396,27 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self._send(404, {"error": "not found"})
 
+    def _handle_localai_query(self, data):
+        text = (data.get("text") or "").strip()
+        if not text:
+            self._send(400, {"ok": False, "error": "empty text"})
+            return
+        payload = json.dumps({
+            "text": text,
+            "temperature": data.get("temperature"),
+            "max_tokens": data.get("max_tokens"),
+            "tools": data.get("tools"),
+        }).encode("utf-8")
+        try:
+            req = urllib.request.Request(
+                LOCALAI_SERVER + "/query", data=payload,
+                headers={"Content-Type": "application/json"}, method="POST")
+            with urllib.request.urlopen(req, timeout=600) as r:
+                resp = json.loads(r.read().decode("utf-8", "replace"))
+            self._send(200, resp)
+        except Exception as e:
+            self._send(200, {"ok": False, "error": "local_ai: %r" % e})
+
     def do_POST(self):
         n = int(self.headers.get("Content-Length", "0"))
         raw = self.rfile.read(n) if n else b""
@@ -984,6 +1424,22 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception:
             data = {}
+
+        if self.path == "/api/localai/query":
+            self._handle_localai_query(data)
+            return
+
+        if self.path in ("/api/boot", "/api/stop", "/api/restart"):
+            tgt = (data.get("target") or "").strip()
+            if not tgt:
+                self._send(400, {"ok": False, "error": "no target"}); return
+            if self.path == "/api/boot":
+                resp = lp_boot(tgt)
+            elif self.path == "/api/stop":
+                resp = lp_stop(tgt)
+            else:
+                resp = lp_restart(tgt)
+            self._send(200, resp); return
 
         if self.path == "/api/send":
             frm = data.get("from", "operator")
@@ -1010,8 +1466,20 @@ class Handler(BaseHTTPRequestHandler):
                 return
             append_message(msg)
             if frm == "operator":
-                # Оператор 02:40 (12.10): фраза оператора = broadcast всем,
-                # в любом режиме. Текст идёт в кике. Режимная развилка убрана.
+                # В режиме совещания инструменты запрещены -> нельзя просить
+                # агента читать chat.jsonl (это op=run). Текст оператора
+                # доставляем прямо в кике.
+                _meeting_on = False
+                try:
+                    if MEETING_FILE.exists():
+                        _meeting_on = bool(json.loads(
+                            MEETING_FILE.read_text(encoding="utf-8")).get("on"))
+                except Exception:
+                    _meeting_on = False
+
+                # Поправка оператора 02:40 (12.10): его фраза = broadcast
+                # всем, в любом режиме. Текст фразы идёт в кике. Режимная
+                # развилка убрана - '[COUNCIL] Новая задача' больше нет.
                 if to == "ALL":
                     kick_all("[COUNCIL] Оператор: " + text[:400])
                 elif to in CHANNELS:
@@ -1193,8 +1661,6 @@ def prewarm():
 
 def main():
     print("council_chat server on http://%s:%d" % (BIND, PORT))
-    print("  channels: " + ", ".join("%s:%d" % (k, v["agent"])
-                                       for k, v in CHANNELS.items()))
     threading.Thread(target=prewarm, daemon=True).start()
     httpd = ThreadingHTTPServer((BIND, PORT), Handler)
     httpd.serve_forever()

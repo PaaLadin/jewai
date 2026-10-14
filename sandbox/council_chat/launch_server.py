@@ -10,10 +10,8 @@ try:
 except Exception:
     pass
 
-# --- Портирование (jewai): ROOT определяется от файла ---
-_HERE = Path(__file__).resolve().parent
-ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
-                                       "council_chat") else _HERE
+_HERE = Path(__file__).resolve().parent  # sandbox/council_chat/
+ROOT = _HERE.parent.parent
 SRV = ROOT / "sandbox" / "council_chat" / "server.py"
 LOG = ROOT / "sandbox" / "council_chat" / "server_out.log"
 

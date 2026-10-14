@@ -8,6 +8,8 @@ MN.channels = [
   {id:'B', name:'БОРИС',   color:'#33d6ff', x:380, y:50},
   {id:'C', name:'СЕМЁН',   color:'#c573ff', x:720, y:50},
   {id:'D', name:'ДИМОН',   color:'#ffb000', x:1060, y:50},
+  {id:'E', name:'QWEN',    color:'#4ecdc4', x:40,  y:340},
+  {id:'F', name:'АЛИСА',   color:'#f7b731', x:380, y:340},
 ];
 // ресурсы: RAG, песочница, прокси (без council — он в mainframe)
 MN.resources = [
@@ -350,7 +352,7 @@ async function pollStatus(){
     }
     // межканальные линки: живой трафик from->to (обе стороны)
     const cby={}; for(const c of MN.channels) cby[c.id]=c;
-    for(const pr of [['A','B'],['B','C'],['C','D'],['A','C'],['B','D'],['A','D']]){
+    for(const pr of [['A','B'],['B','C'],['C','D'],['A','C'],['B','D'],['A','D'],['E','F'],['A','E'],['D','F']]){
       const cp=cby[pr[0]], cq=cby[pr[1]];
       const L1=links['xlink_'+pr[0]+pr[1]], L2=links['xlink_'+pr[1]+pr[0]];
       let ts=0;

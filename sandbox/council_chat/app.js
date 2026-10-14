@@ -7,15 +7,17 @@ let lastTs = 0;
 let msgCount = 0;
 let sessionStart = Date.now();
 
-const NAMES = {A:'Аркадий', B:'Борис', C:'Семён', D:'Дима', ALL:'ВСЕ', operator:'Оператор'};
+const NAMES = {A:'Аркадий', B:'Борис', C:'Семён', D:'Дима', E:'Qwen', F:'Алиса', ALL:'ВСЕ', operator:'Оператор'};
 const CHAN_INFO = {
   A: {name:'Аркадий', tag:'ведущий',  color:'#00ff66', port:9222},
   B: {name:'Борис',   tag:'помощник', color:'#33d6ff', port:9223},
   C: {name:'Семён',   tag:'хранитель',color:'#c573ff', port:9224},
   D: {name:'Дима',    tag:'тестер',   color:'#ffb000', port:9225},
+  E: {name:'Qwen',    tag:'модель',   color:'#4ecdc4', port:9226},
+  F: {name:'Алиса',   tag:'модель',   color:'#f7b731', port:9227},
 };
-const ROSTER_ORDER = ['A','B','C','D'];
-let lastSeen = {A:0, B:0, C:0, D:0};
+const ROSTER_ORDER = ['A','B','C','D','E','F'];
+let lastSeen = {A:0, B:0, C:0, D:0, E:0, F:0};
 
 function $(id){ return document.getElementById(id); }
 function pad(n){ return String(n).padStart(2,'0'); }
@@ -114,8 +116,27 @@ function autosize(){ input.style.height='auto'; input.style.height=Math.min(140,
 
 async function openChat(){ try{ await fetch(API+'/api/open',{method:'POST'}); }catch(e){} }
 async function closeChat(){ try{ await fetch(API+'/api/close',{method:'POST'}); }catch(e){} setTimeout(()=>window.close(),300); }
-async function pultPause(){ try{ await fetch(API+'/api/pause',{method:'POST'}); }catch(e){} }
-async function pultResume(){ try{ await fetch(API+'/api/resume',{method:'POST'}); }catch(e){} }
+let pausedAll = false;
+async function pultPause(){
+  pausedAll = true; renderPauseAll();
+  try{ await fetch(API+'/api/pause_all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:true})}); }catch(e){}
+}
+async function pultResume(){
+  pausedAll = false; renderPauseAll();
+  try{ await fetch(API+'/api/pause_all',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:false})}); }catch(e){}
+}
+function renderPauseAll(){
+  const b=document.getElementById('btnPauseAll');
+  const r=document.getElementById('btnResumeAll');
+  if(b){ b.classList.toggle('on', pausedAll); b.textContent = pausedAll ? 'ПАУЗА ВСЕМ [ИДЁТ]' : 'ПАУЗА ВСЕМ'; }
+  if(r){ r.disabled = !pausedAll; }
+}
+async function loadPauseAll(){
+  try{
+    const r = await fetch('/api/status', {cache:'no-store'});
+    if(r.ok){ const j = await r.json(); pausedAll = !!(j.mainframe && j.mainframe.paused_all); renderPauseAll(); }
+  }catch(e){}
+}
 function clearView(){ feed.innerHTML=''; }
 
 /* ===== VOICE INPUT (Web Speech API, ru-RU) ===== */
@@ -237,6 +258,7 @@ window.addEventListener('DOMContentLoaded', ()=>{
   const bm = $('btnMeeting');
   if(bm) bm.addEventListener('click', toggleMeeting);
   loadMeeting();
+  loadPauseAll();
   initTabs();
   renderRoster();
   setTarget('ALL');
@@ -256,4 +278,27 @@ window.addEventListener('DOMContentLoaded', ()=>{
   // (оператор 05.10). Открытие/закрытие чата - только по кнопке.
   clock(); setInterval(clock,1000); setInterval(updateMetrics,1000);
   poll(); setInterval(poll,1500);
+});
+﻿// pers.js - вкладка Персональные (Борис 3B)
+let persCh=null,persLastTs=0;
+const PERS_NAMES={};
+const PERS_COLORS={};
+async function persInit(){const w=document.getElementById("persList");if(!w)return;w.innerHTML="";try{const r0=await fetch("/api/state",{cache:"no-store"});if(r0.ok){const j0=await r0.json();if(j0.channels){for(const kk in j0.channels){PERS_NAMES[kk]=j0.channels[kk].name||kk;PERS_COLORS[kk]=j0.channels[kk].color||"#33d6ff";}}}}catch(e0){}["A","B","C","D"].forEach(k=>{const b=document.createElement("div");b.className="pers-item";b.dataset.ch=k;b.textContent=PERS_NAMES[k]||k;b.style.color=PERS_COLORS[k];b.addEventListener("click",()=>persSelect(k));w.appendChild(b);});}
+async function persSelect(ch){persCh=ch;persLastTs=0;document.getElementById("persTitle").textContent=PERS_NAMES[ch]||ch;document.getElementById("persFeed").textContent="";document.querySelectorAll(".pers-item").forEach(e=>e.classList.toggle("active",e.dataset.ch===ch));await persPoll();}
+async function persPoll(){if(!persCh)return;try{const r=await fetch("/api/chat/"+persCh,{cache:"no-store"});if(!r.ok)return;const d=await r.json();const feed=document.getElementById("persFeed");(d.messages||[]).forEach(m=>{if(m.ts<=persLastTs)return;persLastTs=m.ts;const div=document.createElement("div");div.className="pers-msg "+((m.from==="operator")?"from-operator":"from-agent");const h=document.createElement("span");h.className="pers-h";h.textContent=(m.id||"")+" "+(m.from==="operator"?"Вы":(PERS_NAMES[m.from]||m.from))+": ";div.appendChild(h);const t=document.createElement("span");t.className="pers-text";t.textContent=m.text;div.appendChild(t);feed.appendChild(div);});feed.scrollTop=feed.scrollHeight;}catch(e){}}
+async function persSend(){if(!persCh)return;const inp=document.getElementById("persInput");const t=inp.value.trim();if(!t)return;inp.value="";try{await fetch("/api/chat/"+persCh,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({from:"operator",text:t})});await persPoll();}catch(e){}}
+window.addEventListener("DOMContentLoaded",()=>{if(!document.getElementById("persList"))return;persInit();const s=document.getElementById("persSend");if(s)s.addEventListener("click",persSend);const i=document.getElementById("persInput");if(i)i.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();persSend();}});setInterval(persPoll,3000);});
+
+/* ===== PROJECTS TAB (lazy iframe) ===== */
+window.addEventListener('DOMContentLoaded', () => {
+  const btn = document.querySelector('.tab[data-tab="projects"]');
+  const frame = document.getElementById('projectsFrame');
+  if (!btn || !frame) return;
+  let loaded = false;
+  btn.addEventListener('click', () => {
+    if (!loaded) {
+      frame.src = '/projects.html';
+      loaded = true;
+    }
+  });
 });

@@ -18,14 +18,77 @@
 
   <!-- Табы -->
   <div class="tabs">
-    <button class="tab active" data-tab="chat">ЧАТ</button>
-    <button class="tab" data-tab="mnemo">МНЕМОСХЕМА</button>
+    <button class="tab active" data-tab="launchpad">ПУЛЬТ</button>
+    <button class="tab" data-tab="localai">ЛОКАЛЬНЫЙ AI</button>
+    <button class="tab" data-tab="chat">ЧАТ</button>
+    <button class="tab" data-tab="pers">ПЕРСОНАЛЬНЫЕ</button><button class="tab" data-tab="mnemo">МНЕМОСХЕМА</button>
     <button class="tab" data-tab="logs">ЛОГИ</button>
-    <a class="tab" href="/projects.html" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">ПРОЕКТЫ</a>
+    <button class="tab" data-tab="projects">ПРОЕКТЫ</button>
+  </div>
+
+  <!-- Экран ЛОКАЛЬНЫЙ AI -->
+  <div class="screen active" id="screen-launchpad">
+    <div class="lp-wrap">
+      <svg id="lpMnemo" viewBox="0 0 1080 480" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="lp-state" id="lpState">---</div>
+      <div class="lp-net">СВЯЗЬ: <b id="lpNet">---</b> <span id="lpClk">--:--:--</span></div>
+      <div class="lp-logbox" id="lpLog"></div>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-localai">
+    <div class="la-wrap">
+      <div class="la-chat">
+        <div class="la-title">ЛОКАЛЬНЫЙ AI // QWEN2.5-3B // llama.cpp :8081</div>
+        <div id="laFeed"></div>
+        <div class="la-composer">
+          <span class="prompt">&gt;</span>
+          <textarea id="laInput" placeholder="запрос локальному ИИ..."></textarea>
+          <button id="laSend" title="отправить">&gt;_</button>
+        </div>
+      </div>
+      <div class="la-panel">
+        <div class="panel-block">
+          <div class="panel-title">ИНДИКАТОРЫ</div>
+          <div class="la-ind" id="laInd">
+            <div class="la-ind-row"><span class="la-lamp" id="laLampLlama"></span><span>llama-server :8081</span></div>
+            <div class="la-ind-row"><span class="la-lamp" id="laLampSrv"></span><span>оркестратор :8090</span></div>
+            <div class="la-ind-row"><span class="la-lamp" id="laLampModel"></span><span>модель загружена</span></div>
+            <div class="la-ind-row"><span class="la-lamp" id="laLampRag"></span><span>RAG индекс</span></div>
+          </div>
+        </div>
+        <div class="panel-block">
+          <div class="panel-title">ПАРАМЕТРЫ</div>
+          <div class="la-param"><label>temperature <b id="laTempVal">0.3</b></label><input type="range" id="laTemp" min="0" max="2" step="0.1" value="0.3"></div>
+          <div class="la-param"><label>max_tokens <b id="laMaxVal">512</b></label><input type="range" id="laMax" min="64" max="2048" step="64" value="512"></div>
+        </div>
+        <div class="panel-block">
+          <div class="panel-title">TOOLS</div>
+          <div class="la-tools">
+            <label><input type="checkbox" class="laTool" data-tool="get_time" checked> get_time</label>
+            <label><input type="checkbox" class="laTool" data-tool="get_weather" checked> get_weather</label>
+            <label><input type="checkbox" class="laTool" data-tool="check_email" checked> check_email</label>
+            <label><input type="checkbox" class="laTool" data-tool="ask_agent" checked> ask_agent</label>
+            <label><input type="checkbox" class="laTool" data-tool="query_rag" checked> query_rag</label>
+            <label><input type="checkbox" class="laTool" data-tool="generate_image" checked> generate_image</label>
+            <!-- generate_video отключён (нет бесплатного доступа) -->
+            <label><input type="checkbox" class="laTool" data-tool="generate_audio" checked> generate_audio</label>
+          </div>
+        </div>
+        <div class="panel-block grow">
+          <div class="panel-title">УПРАВЛЕНИЕ</div>
+          <div class="la-ctrl">
+            <button class="pbtn" id="laRestartLlama">ПЕРЕЗАПУСК LLAMA</button>
+            <button class="pbtn" id="laRestartSrv">ПЕРЕЗАПУСК ОРКЕСТРАТОРА</button>
+            <button class="pbtn" id="laClear">ОЧИСТИТЬ ЧАТ</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Экран ЧАТ -->
-  <div class="screen active" id="screen-chat">
+  <div class="screen" id="screen-chat">
     <div class="main">
       <div class="panel">
         <div class="panel-block">
@@ -73,6 +136,7 @@
     </div>
   </div>
 
+  <div class="screen" id="screen-pers"><div class="pers-wrap"><div class="pers-list" id="persList"></div><div class="pers-chat"><div class="pers-title" id="persTitle">выберите агента</div><div id="persFeed"></div><div class="pers-composer"><textarea id="persInput" placeholder="сообщение агенту..."></textarea><button id="persSend">&gt;_</button></div></div></div></div>
   <!-- Экран МНЕМОСХЕМА -->
   <div class="screen" id="screen-mnemo">
     <div class="mnemo-wrap">
@@ -92,9 +156,19 @@
     </div>
   </div>
 
+  <!-- Экран ПРОЕКТЫ -->
+  <div class="screen" id="screen-projects">
+    <div class="projects-wrap">
+      <iframe id="projectsFrame" src="about:blank" title="Проекты"></iframe>
+    </div>
+  </div>
+
 </div>
 
+<script src="/launchpad_live.js"></script>
+<script src="/localai.js"></script>
 <script src="/app.js"></script>
 <script src="/mnemo.js"></script>
+<script src="/pers.js"></script>
 </body>
 </html>

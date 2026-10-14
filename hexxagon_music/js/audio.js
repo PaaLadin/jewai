@@ -327,7 +327,7 @@ const AudioEngine = (() => {
     // Целевая длина трека ~110 сек. Считаем, сколько проходов нужно.
     const secPerBar = (60.0 / bpm) * 4;
     const loopSec = barsPerLoop * secPerBar;
-    const targetSec = st.targetSec || 140;
+    const targetSec = st.targetSec || 360;
     const loops = Math.max(2, Math.round(targetSec / loopSec));
     // Разворачиваем секции loops раз.
     timeline = [];

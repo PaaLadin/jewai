@@ -210,7 +210,7 @@ const AIComposer = (() => {
       sections,
       synth: base.synth,
       SPB: base.SPB || 16,
-      targetSec: base.targetSec || 120,
+      targetSec: base.targetSec || 360,
       seed: seed,
     };
   }

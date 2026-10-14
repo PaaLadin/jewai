@@ -455,6 +455,10 @@ const AudioEngine = (() => {
     // Записать имя стиля в каналы (чтобы synthFor знал).
     for (const ch of CHANNELS) channelState[ch].style = style.name;
     activeStyle = style;
+    // v6: если у трека задан SoundPack — применить его.
+    if (style.pack && typeof SoundPacks !== "undefined") {
+      SoundPacks.set(style.pack);
+    }
     bpm = style.bpm || 100;
     rebuildTimeline();
     // Перенести nextNoteTime вперёд — старт с чистого листа.

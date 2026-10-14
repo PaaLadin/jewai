@@ -32,10 +32,24 @@ def gen_launchers(root, n, port_base, cdp_base, chat_port, proxy_port=9999):
 
         ps = f"""# start-{L}.ps1 — Chrome-{L} (CDP {cdp_port}) + агент {L} ({agent_port})
 # Сгенерировано gen_launchers.py. Правки потеряются при переустановке.
+# Extension и стартовый URL — per-channel из config.json.
 $ErrorActionPreference = "Continue"
 $root = "{root}"
 $chrome = "$env:PROGRAMFILES\\Google\\Chrome\\Application\\chrome.exe"
-$ext = "$root\\extension"
+$cfgFile = Join-Path $root "config.json"
+$extName = "extension"
+$startUrl = "https://chat.deepseek.com/"
+if (Test-Path $cfgFile) {{
+    $cfg = Get-Content $cfgFile -Raw | ConvertFrom-Json
+    $ch = $cfg.channels.{L}
+    if ($ch -and $ch.extension) {{ $extName = $ch.extension }}
+    if ($ch -and $ch.model) {{
+        if ($ch.model -eq "qwen") {{ $startUrl = "https://chat.qwen.ai/" }}
+        elseif ($ch.model -eq "alice") {{ $startUrl = "https://alice.yandex.ru/" }}
+    }} elseif ($extName -eq "extension_qwen") {{ $startUrl = "https://chat.qwen.ai/" }}
+    elseif ($extName -eq "extension_alice") {{ $startUrl = "https://alice.yandex.ru/" }}
+}}
+$ext = Join-Path $root $extName
 $prof = "$root\\runtime\\chrome\\{L}"
 $log = "$root\\runtime\\start-chrome-{L}.log"
 
@@ -82,13 +96,19 @@ $flags = @(
     "--disable-background-timer-throttling",
     "--no-first-run",
     "--no-default-browser-check",
-    "--restore-last-session"
+    "--restore-last-session",
+    "--hide-crash-restore-bubble"
 )
+
+$fix = "$root\\sandbox\\fix_profile_exit.py"
+if (Test-Path $fix) {{
+    try {{ & python $fix $prof | Out-Null }} catch {{}}
+}}
 
 $firstRun = -not (Test-Path (Join-Path $prof "Default\\Preferences"))
 if ($firstRun) {{
-    $flags += "https://chat.deepseek.com/"
-    Log "first run: opening chat"
+    $flags += $startUrl
+    Log "first run: opening $startUrl"
 }}
 
 $cmd = 'start "" "' + $chrome + '" ' + ($flags -join ' ')
@@ -117,11 +137,13 @@ Write-Host "{L}: agent {agent_port}, CDP {cdp_port}"
 
 
     # stop-all.ps1
+    chrome_dirs = ", ".join('"runtime\\chrome\\%s"' % L for L in LETTERS[:n])
     stop_all = (
-        "# stop-all.ps1 — остановить агентов и Chrome этого проекта.\n"
+        "# stop-all.ps1 — остановить jewai БЕЗ 'восстановить вкладки'.\n"
         f"$root = \"{root}\"\n"
         "Write-Host \"Останавливаю jewai из $root\"\n"
         "\n"
+        "# 1. агенты (python) — force ок (они не пишут профиль Chrome)\n"
         + PY_FILTER + "\n"
         "  Where-Object { $_.CommandLine -like \"*agent.py*\" -and "
         "$_.CommandLine -like \"*$root*\" } |\n"
@@ -133,18 +155,49 @@ Write-Host "{L}: agent {agent_port}, CDP {cdp_port}"
         "  ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
         "-ErrorAction SilentlyContinue }\n"
         "\n"
-        "$chromeNames = @("
-        + ", ".join(f"\"runtime\\chrome\\{L}\"" for L in LETTERS[:n])
-        + ")\n"
-        "Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" |\n"
+        "# 2. Chrome — GRACEFUL (CloseMainWindow), иначе Crashed\n"
+        f"$chromeNames = @({chrome_dirs})\n"
+        "$chrome = Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" |\n"
         "  Where-Object {\n"
         "    $cl = $_.CommandLine\n"
         "    $chromeNames | Where-Object { $cl -like \"*$_*\" }\n"
-        "  } |\n"
-        "  ForEach-Object { Stop-Process -Id $_.ProcessId -Force "
-        "-ErrorAction SilentlyContinue }\n"
+        "  }\n"
+        "if ($chrome) {\n"
+        "    Write-Host \"graceful close: $($chrome.Count)\"\n"
+        "    $chrome | ForEach-Object {\n"
+        "        $p = Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue\n"
+        "        if ($p) { $p.CloseMainWindow() | Out-Null }\n"
+        "    }\n"
+        "    for ($i = 0; $i -lt 20; $i++) {\n"
+        "        Start-Sleep -Milliseconds 500\n"
+        "        $still = Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" |\n"
+        "          Where-Object {\n"
+        "            $cl = $_.CommandLine\n"
+        "            $chromeNames | Where-Object { $cl -like \"*$_*\" }\n"
+        "          }\n"
+        "        if (-not $still) { break }\n"
+        "    }\n"
+        "    $still = Get-CimInstance Win32_Process -Filter \"Name='chrome.exe'\" |\n"
+        "      Where-Object {\n"
+        "        $cl = $_.CommandLine\n"
+        "        $chromeNames | Where-Object { $cl -like \"*$_*\" }\n"
+        "      }\n"
+        "    if ($still) {\n"
+        "        Write-Host \"graceful timeout, force kill: $($still.Count)\"\n"
+        "        $still | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }\n"
+        "    }\n"
+        "}\n"
         "\n"
-        "Write-Host \"Остановлено.\"\n"
+        "# 3. починить exit_type во всех профилях (на будущее)\n"
+        "$fix = Join-Path $root \"sandbox\\fix_profile_exit.py\"\n"
+        "if (Test-Path $fix) {\n"
+        "    foreach ($d in $chromeNames) {\n"
+        "        $prof = Join-Path $root $d\n"
+        "        if (Test-Path $prof) { try { & python $fix $prof | Out-Null } catch {} }\n"
+        "    }\n"
+        "}\n"
+        "\n"
+        "Write-Host \"Остановлено (graceful).\"\n"
     )
     (ld / "stop-all.ps1").write_text(stop_all, encoding="utf-8-sig")
 
@@ -246,8 +299,11 @@ foreach ($L in $letters) {
         "--disable-background-timer-throttling",
         "--no-first-run",
         "--no-default-browser-check",
-        "--restore-last-session"
+        "--restore-last-session",
+        "--hide-crash-restore-bubble"
     )
+    $fixp = Join-Path $Root "sandbox\fix_profile_exit.py"
+    if (Test-Path $fixp) { try { & python $fixp $prof | Out-Null } catch {} }
     if ($first) { $args += "https://chat.deepseek.com/" }
     Start-Process -FilePath $chrome -ArgumentList $args
     Log "Chrome $L started (CDP $cdp)"
@@ -280,17 +336,17 @@ if ($mb) {
 }
 Start-Sleep -Seconds 2
 
-# --- 4c. la_watchdog (rebirth monitor; skip если скрипта нет) ---
+# --- 4c. la_rebirth_monitor (rebirth monitor; skip если скрипта нет) ---
 $lw = Get-CimInstance Win32_Process |
-  Where-Object { ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*la_watchdog*" }
-$lwScript = Join-Path $Root "sandbox\la_watchdog.py"
+  Where-Object { ($_.Name -eq "python.exe" -or $_.Name -eq "pythonw.exe") -and $_.CommandLine -like "*la_rebirth_monitor*" }
+$lwScript = Join-Path $Root "sandbox\la_rebirth_monitor.py"
 if ($lw) {
-    Log "la_watchdog up"
+    Log "la_rebirth_monitor up"
 } elseif (-not (Test-Path $lwScript)) {
-    Log "la_watchdog skipped (no script)"
+    Log "la_rebirth_monitor skipped (no script)"
 } else {
     Start-Process pythonw -ArgumentList @($lwScript, "--loop", "1200", "--rebirth-monitor") -WorkingDirectory (Split-Path $lwScript) -WindowStyle Hidden
-    Log "la_watchdog started"
+    Log "la_rebirth_monitor started"
 }
 Start-Sleep -Seconds 2
 

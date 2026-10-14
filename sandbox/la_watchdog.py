@@ -1,3 +1,4 @@
+"""LEGACY: la_watchdog.py переименован в la_rebirth_monitor.py (2026-10-14). Оставлен для истории/совместимости. Новый - la_rebirth_monitor.py."""
 """la_watchdog.py - внешний сторож для Лады (LA, local_ai).
 
 Пинкует Ладу по расписанию (не полагается на её память).

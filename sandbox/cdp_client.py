@@ -9,6 +9,8 @@ import urllib.request
 import websocket  # websocket-client
 
 CHAT_MARK = "/a/chat/s/"
+KNOWN_CHAT_HOSTS = ("deepseek.com", "chat.qwen.ai", "qwen.ai",
+                    "alice.yandex.ru", "yandex.ru")
 
 
 def list_targets(port):
@@ -17,14 +19,22 @@ def list_targets(port):
         return json.loads(r.read().decode("utf-8", "replace"))
 
 
-def find_chat_target(port, marker=CHAT_MARK, host="deepseek.com"):
+def find_chat_target(port, marker=CHAT_MARK, host=None):
+    """Ищет вкладку чата. host=None -> любой известный чат-хост
+    (deepseek/qwen/alice)."""
+    known_fallback = None
     for t in list_targets(port):
         if t.get("type") != "page":
             continue
         u = t.get("url", "")
-        if marker in u and host in u:
+        if host and marker in u and host in u:
             return t
-    return None
+        if any(h in u for h in KNOWN_CHAT_HOSTS):
+            if marker in u:
+                return t
+            if known_fallback is None:
+                known_fallback = t
+    return known_fallback
 
 
 class CDPSession:

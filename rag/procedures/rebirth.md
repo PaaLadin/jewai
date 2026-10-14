@@ -1,7 +1,7 @@
 # rebirth — перерождение агента (смена серии)
 
 WHEN: агент близок к переполнению чата (порог или лимит DeepSeek).
-WHO: la_watchdog (сторож) + rebirth_master (оркестратор) + агент.
+WHO: la_rebirth_monitor (сторож) + rebirth_master (оркестратор) + агент.
 STEPS: см. «Поток». STOP: стоп-слово.
 
 Канон системы перерождения. Собрано 11A (Аркадий), 2026-10-13,
@@ -55,7 +55,7 @@ Watchdog при переполнении сам ставит ready -> перер
 
 | Файл | Роль |
 |------|------|
-| la_watchdog.py --rebirth-monitor | пороги, напоминания, hold-limit, автозапуск |
+| la_rebirth_monitor.py --rebirth-monitor | пороги, напоминания, hold-limit, автозапуск |
 | rebirth_master.py | оркестрация: флаг -> гейт -> чеклист -> cdp -> онбординг |
 | rebirth.py --dry-run | чеклист mtime (TODO/HANDOVER/PROMPT/SESSION) |
 | rebirth_cdp.py --live | share старого чата -> новый чат -> активация |
@@ -85,7 +85,7 @@ hold_<CH>.flag, force_<CH>.flag).
 
 ## 7. Поток
 
-    la_watchdog --rebirth-monitor
+    la_rebirth_monitor --rebirth-monitor
       -> пороги/напоминания (500/700/850)
       -> hold? -> ждать переполнения
       -> переполнение -> watchdog ставит ready

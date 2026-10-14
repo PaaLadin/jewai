@@ -5,9 +5,28 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Hexxagon Music</title>
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style_16bit.css">
+<link rel="stylesheet" href="css/screens_v6.css">
 </head>
 <body>
 
+<div id="screen-flash"></div>
+
+<div id="lore-screen" class="hidden">
+  <canvas id="lore-canvas" width="640" height="320"></canvas>
+  <div class="lore-panel">
+    <h2 id="lore-title">...</h2>
+    <p id="lore-text"></p>
+    <div class="lore-bottom">
+      <div id="lore-dots"></div>
+      <div class="lore-buttons">
+        <button id="lore-skip">Пропустить</button>
+        <button id="lore-next" class="primary">ДАЛЕЕ →</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="game-screen" class="hidden">
 <div id="app">
   <header id="hud">
     <div class="hud-box">
@@ -40,11 +59,28 @@
     </div>
   </header>
 
+  <div id="title-screen">
+    <div class="title-logo">
+      <div class="logo-line1">HEXXAGON</div>
+      <div class="logo-line2">M U S I C</div>
+      <div class="logo-sub">16-bit edition</div>
+    </div>
+    <div class="title-menu">
+      <button id="title-start" class="primary">▶ НАЧАТЬ</button>
+      <button id="title-continue">↻ ПРОДОЛЖИТЬ</button>
+      <button id="title-tutorial">? ОБУЧЕНИЕ</button>
+      <button id="title-demo">👁 ДЕМО</button>
+    </div>
+    <div class="title-credits">7D · 2026 · Web Audio</div>
+  </div>
+
   <main id="stage">
     <canvas id="board" width="640" height="640"></canvas>
     <div id="overlay" class="hidden">
       <div id="overlay-text"></div>
+      <div id="overlay-planet-result"></div>
       <button id="btn-restart">Заново</button>
+      <button id="btn-planet-back" class="primary" style="display:none">🚀 В рубку</button>
     </div>
   </main>
 
@@ -71,6 +107,7 @@
         <option value="corners-4">Углы (4)</option>
         <option value="spiral-3">Спираль (3)</option>
       </select>
+      <select id="track-select" title="Трек (авторская)" style="display:none"></select>
       <select id="style-select" title="Стиль">
         <option value="retrowave">retrowave</option>
         <option value="rock">rock</option>
@@ -103,7 +140,11 @@
         <option value="en">EN</option>
       </select>
       <select id="theme-select" title="Тема">
-        <option value="neon" selected>неон</option>
+        <option value="snes" selected>SNES</option>
+        <option value="genesis">Genesis</option>
+        <option value="amiga">Amiga</option>
+        <option value="arcade">Arcade</option>
+        <option value="neon">неон</option>
         <option value="phosphor">фосфор</option>
         <option value="classic">классика</option>
         <option value="mono">моно</option>
@@ -116,6 +157,7 @@
       <button id="btn-audio" class="primary">▶ Включить звук</button>
       <button id="btn-undo" disabled>↶ Отмена</button>
       <button id="btn-new">Новая партия</button>
+      <button id="btn-menu">☰ В меню</button>
       <span class="ctrl-sep"></span>
       <button id="btn-daily" title="Партия дня">📅</button>
       <button id="btn-share" title="Скопировать ссылку">🔗</button>
@@ -124,6 +166,7 @@
       <button id="btn-legend" title="Легенда секторов">🗺</button>
       <button id="btn-export" title="Сохранить партию">💾</button>
       <button id="btn-import" title="Открыть партию">📁</button>
+      <button id="btn-shot" title="Скриншот поля (PNG)">📷</button>
       <button id="btn-wav" title="Экспорт мелодии в WAV">🎵</button>
       <button id="btn-achv" title="Достижения">🏆</button>
       <button id="btn-lb" title="Лидеры">📊</button>
@@ -136,6 +179,7 @@
     <div id="status" class="small"></div>
   </footer>
 </div>
+</div><!-- /game-screen -->
 
 <script src="js/hex.js"></script>
 <script src="js/board.js"></script>
@@ -163,6 +207,16 @@
 <script src="js/replay.js"></script>
 <script src="js/compose.js"></script>
 <script src="js/ai_composer.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/lore.js"></script>
+<script src="js/author_tracks.js"></script>
+<script src="js/progress.js"></script>
+<script src="js/galaxy.js"></script>
+<script src="js/tech_view.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/tracker.js"></script>
+<script src="js/settings_screen.js"></script>
+<script src="js/legend.js"></script>
 <script src="js/game.js"></script>
 <div id="achv-modal" class="modal hidden">
   <div class="modal-content">
@@ -198,9 +252,28 @@
       <button id="pe-stop">■</button>
     </div>
     <div id="pe-grid" style="display:grid;grid-template-columns:repeat(16,1fr);gap:2px;margin-bottom:12px;"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button id="pe-apply">Применить</button>
-      <button id="pe-close">Закрыть</button>
+    <div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">
+      <div style="display:flex;gap:6px;">
+        <button id="pe-export" title="Экспорт секции в JSON">⬇ JSON</button>
+        <button id="pe-import" title="Импорт секции из JSON">⬆ JSON</button>
+        <input id="pe-file" type="file" accept=".json" style="display:none">
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button id="pe-apply">Применить</button>
+        <button id="pe-close">Закрыть</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="legend-modal" class="modal hidden">
+  <div class="modal-content legend-content">
+    <h3>ЛЕГЕНДА ИНТЕРФЕЙСА</h3>
+    <div class="legend-body">
+      <div id="legend-list"></div>
+      <div id="legend-detail"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
+      <button id="legend-close">Закрыть</button>
     </div>
   </div>
 </div>
@@ -214,5 +287,106 @@
     </div>
   </div>
 </div>
+
+<div id="menu-screen" class="hidden">
+  <div class="screen-logo">
+    <div class="logo-line1">HEXXAGON</div>
+    <div class="logo-line2">M U S I C</div>
+    <div class="logo-sub">освобождение Music Star</div>
+  </div>
+  <div class="menu-list">
+    <button id="menu-story" class="primary">🚀 1 vs PC — освобождение</button>
+    <button id="menu-quick">⚡ 1 vs PC — быстрая игра</button>
+    <button id="menu-2p">👥 2 игрока</button>
+    <button id="menu-tracker">🎵 Трекер</button>
+    <button id="menu-settings">⚙ Настройки</button>
+    <button id="menu-exit">↩ Выход</button>
+  </div>
+  <div id="menu-progress" class="menu-progress"></div>
+</div>
+
+<div id="tech-screen" class="hidden">
+  <div class="tech-layout">
+    <div class="tech-left">
+      <h2>РУБКА КОРАБЛЯ</h2>
+      <div id="tech-list"></div>
+      <div class="tech-controls">
+        <label>Скафандр:
+          <select id="tech-suit">
+            <option value="analog">аналог</option>
+            <option value="digital">цифра</option>
+            <option value="acoustic">акустика</option>
+            <option value="chip">8-бит</option>
+          </select>
+        </label>
+        <button id="tech-fly" class="primary">🚀 ЛЕТЕТЬ</button>
+        <button id="tech-back">← Меню</button>
+      </div>
+    </div>
+    <div class="tech-right">
+      <canvas id="tech-canvas"></canvas>
+      <div id="tech-info"></div>
+    </div>
+  </div>
+</div>
+
+<div id="tracker-screen" class="hidden">
+  <h2>ТРЕКЕР</h2>
+  <p id="tracker-hint" class="small"></p>
+  <div id="tracker-instruments">
+    <span class="ti-label">Инструменты:</span>
+    <label><input type="checkbox" data-ch="kick" checked> kick</label>
+    <label><input type="checkbox" data-ch="snare" checked> snare</label>
+    <label><input type="checkbox" data-ch="hat" checked> hat</label>
+    <label><input type="checkbox" data-ch="bass" checked> bass</label>
+    <label><input type="checkbox" data-ch="pad" checked> pad</label>
+    <label><input type="checkbox" data-ch="lead" checked> lead</label>
+    <label><input type="checkbox" data-ch="arp" checked> arp</label>
+    <button id="tracker-ch-all">все</button>
+    <button id="tracker-ch-none">сброс</button>
+    <button id="tracker-ch-drums">ударные</button>
+  </div>
+  <div id="tracker-list"></div>
+  <div id="tracker-seeds-box" class="hidden">
+    <div class="tracker-hdr">Сохранённые сиды</div>
+    <div id="tracker-seeds-list"></div>
+  </div>
+  <div class="tracker-controls">
+    <button id="tracker-stop">■ Стоп</button>
+    <button id="tracker-seed" style="display:none">🎲 Новый сид</button>
+    <button id="tracker-seed-save" style="display:none">💾 Сохранить сид</button>
+    <button id="tracker-back">← Меню</button>
+  </div>
+</div>
+
+<div id="settings-screen" class="hidden">
+  <h2>НАСТРОЙКИ</h2>
+  <div class="settings-body">
+    <label>Язык: <select id="set-lang"><option value="ru">RU</option><option value="en">EN</option></select></label>
+    <label>Тема: <select id="set-theme"></select></label>
+    <label>Звуковой пак: <select id="set-pack">
+      <option value="analog">аналог</option><option value="digital">цифра</option>
+      <option value="acoustic">акустика</option><option value="chip">8-бит</option>
+    </select></label>
+    <label>Стиль: <select id="set-style"></select></label>
+    <label>Игроков: <select id="set-players">
+      <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+    </select></label>
+    <label>Режим: <select id="set-mode">
+      <option value="vs-ai">против ИИ</option><option value="hotseat">hot seat</option>
+    </select></label>
+    <label>ИИ: <select id="set-ai">
+      <option value="easy">слабый</option><option value="medium">средний</option>
+      <option value="hard">сильный</option>
+    </select></label>
+    <label>Пресет: <select id="set-preset"></select></label>
+    <label>Громкость: <input id="set-volume" type="range" min="0" max="100" value="70"></label>
+  </div>
+  <div class="settings-controls">
+    <button id="set-progress-reset">Сбросить прогрессию</button>
+    <button id="settings-back" class="primary">← Меню</button>
+  </div>
+</div>
+
 </body>
 </html>

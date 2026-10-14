@@ -1,0 +1,136 @@
+/* screens_v6.css - стили новых экранов v6: меню, рубка, трекер, настройки. */
+
+#menu-screen, #tech-screen, #tracker-screen, #settings-screen {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 35%, #101838 0%, #04060f 75%);
+  font-family: "Press Start 2P", "Courier New", monospace;
+  color: #e6f0ff;
+}
+.hidden { display: none !important; }
+
+#overlay-planet-result {
+  color: #2ecc71; font-size: 12px; margin: 10px 0;
+  font-family: "Press Start 2P", monospace; line-height: 1.6;
+}
+#overlay-planet-result:empty { display: none; }
+
+/* --- v6 этап 6: на игровом поле только HUD + кнопки --- */
+#game-screen #controls .ctrl-play,
+#game-screen #controls .ctrl-settings { display: none; }
+/* Настройки/режим теперь в меню (settings_screen) — оставляем в DOM,
+   чтобы game.js не падал, но на поле их не видно. */
+#game-screen #controls #player-styles { display: none; }
+
+/* --- Меню --- */
+.screen-logo { text-align: center; margin-bottom: 30px; }
+.menu-list {
+  display: flex; flex-direction: column; gap: 12px;
+  min-width: 320px;
+}
+.menu-list button { font-size: 12px; padding: 14px 24px; text-align: left; }
+.menu-progress {
+  margin-top: 24px; font-size: 10px; color: #8ca8e0;
+  letter-spacing: 2px;
+}
+
+/* --- Рубка --- */
+.tech-layout {
+  display: grid; grid-template-columns: 300px 1fr;
+  gap: 16px; width: 96%; max-width: 1300px; height: 92vh;
+  padding: 12px;
+}
+.tech-left {
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--px-bg-panel, #0c1638);
+  border: 3px solid #5a7ac0; padding: 12px;
+  overflow-y: auto;
+}
+.tech-left h2 { font-size: 12px; color: #f8d860; margin: 0 0 10px; }
+#tech-list { flex: 1; overflow-y: auto; }
+.tech-item {
+  display: grid; grid-template-columns: 14px 1fr auto auto;
+  gap: 8px; align-items: center;
+  padding: 8px; margin-bottom: 4px;
+  border: 2px solid #1a2450; background: #0a1228;
+  font-size: 9px; cursor: pointer;
+}
+.tech-item:hover { border-color: #f8d860; }
+.tech-item.sel { background: #1a2450; border-color: #f8d860; }
+.tech-item.won { border-color: #2ecc71; }
+.tech-item.locked { opacity: 0.4; cursor: default; }
+.pi-dot { width: 12px; height: 12px; border: 1px solid #000; }
+.pi-style { color: #8ca8e0; font-size: 8px; }
+.pi-won { color: #2ecc71; }
+.tech-controls {
+  display: flex; flex-direction: column; gap: 8px;
+  border-top: 1px solid #2a3a6a; padding-top: 10px;
+}
+.tech-controls label { font-size: 9px; color: #8ca8e0; }
+.tech-controls select { font-size: 10px; margin-top: 4px; width: 100%; }
+.tech-right {
+  display: flex; flex-direction: column; gap: 10px;
+  border: 3px solid #5a7ac0; background: #04060f; position: relative;
+}
+#tech-canvas { flex: 1; width: 100%; image-rendering: pixelated; }
+#tech-info {
+  padding: 12px; border-top: 2px solid #1a2450;
+  font-size: 9px; line-height: 1.8; min-height: 80px;
+}
+#tech-info h3 { color: #f8d860; font-size: 11px; margin: 0 0 8px; }
+.tech-desc { color: #c8d6ec; }
+.tech-won { color: #2ecc71; }
+.tech-locked { color: #ff7070; }
+
+/* --- Трекер --- */
+#tracker-screen { justify-content: flex-start; padding: 20px; overflow-y: auto; }
+#tracker-screen h2 { color: #f8d860; font-size: 14px; margin-bottom: 8px; }
+#tracker-instruments {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+  width: 90%; max-width: 800px; margin: 8px 0;
+  padding: 8px 10px; border: 2px solid #1a2450; background: #0a1228;
+  font-size: 9px;
+}
+#tracker-instruments .ti-label { color: #f8d860; }
+#tracker-instruments label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+#tracker-instruments input { accent-color: #f8d860; }
+#tracker-instruments button { font-size: 8px; padding: 4px 8px; }
+#tracker-seeds-box { width: 90%; max-width: 800px; margin: 8px 0; }
+#tracker-seeds-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.seed-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 8px; border: 2px solid #1a2450; background: #0a1228;
+  font-size: 8px; cursor: pointer;
+}
+.seed-chip:hover { border-color: #f8d860; }
+.seed-chip .sc-del { color: #ff7070; cursor: pointer; }
+#tracker-list { width: 90%; max-width: 800px; margin: 12px 0; }
+.tracker-item {
+  display: grid; grid-template-columns: 14px 1fr auto auto;
+  gap: 8px; align-items: center; padding: 8px;
+  margin-bottom: 4px; border: 2px solid #1a2450; background: #0a1228;
+  font-size: 9px; cursor: pointer;
+}
+.tracker-item:hover { border-color: #f8d860; }
+.tracker-item.locked { opacity: 0.4; cursor: default; }
+.tracker-item.won { border-color: #2ecc71; }
+.tracker-hdr {
+  font-size: 10px; color: #f8d860; margin: 16px 0 8px;
+  border-bottom: 1px solid #2a3a6a; padding-bottom: 4px;
+}
+.tracker-controls { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; }
+
+/* --- Настройки --- */
+#settings-screen { justify-content: flex-start; padding: 20px; overflow-y: auto; }
+#settings-screen h2 { color: #f8d860; font-size: 14px; margin-bottom: 16px; }
+.settings-body {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  width: 90%; max-width: 700px;
+}
+.settings-body label {
+  display: flex; flex-direction: column; gap: 4px;
+  font-size: 9px; color: #8ca8e0;
+}
+.settings-body select, .settings-body input { font-size: 11px; }
+.settings-controls { display: flex; gap: 8px; margin-top: 20px; }

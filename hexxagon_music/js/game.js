@@ -25,6 +25,7 @@ const Game = (() => {
   let showLegend = false;   // подписи секторов на поле
   let sectorOfHex = new Map();// key(q,r) -> channel
   let lastTime = 0;
+  let _ditherPat = null;
   let sectorsSummary = {};    // channel -> { player, count }
 
   const CHANNELS = ["kick","snare","hat","bass","pad","lead","arp"];
@@ -141,13 +142,24 @@ const Game = (() => {
     size = f.size; originX = f.originX; originY = f.originY;
     // Звёзды: 60 точек, медленно движутся.
     if (!stars.length) {
+      // Дальний слой: 60 мелких.
       for (let i = 0; i < 60; i++) {
         stars.push({
           x: Math.random() * w, y: Math.random() * h,
-          r: 0.4 + Math.random() * 1.2,
-          vx: (Math.random() - 0.5) * 4,
-          vy: (Math.random() - 0.5) * 4,
-          a: 0.3 + Math.random() * 0.6,
+          layer: 0,
+          vx: (Math.random() - 0.5) * 3,
+          vy: (Math.random() - 0.5) * 3,
+          a: 0.25 + Math.random() * 0.4,
+        });
+      }
+      // Ближний слой: 30 крупных.
+      for (let i = 0; i < 30; i++) {
+        stars.push({
+          x: Math.random() * w, y: Math.random() * h,
+          layer: 1,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8,
+          a: 0.5 + Math.random() * 0.5,
         });
       }
     }
@@ -173,36 +185,73 @@ const Game = (() => {
   }
 
   function drawBackground(dt, now) {
-    // Градиент.
+    // v2: дизеринг-фон (SNES/Genesis-стиль), вместо плоского градиента.
     const t = Themes.current();
     const bg = t.bg;
-    // Затемнение центра - используем bg как основу.
     ctx2d.fillStyle = bg;
     ctx2d.fillRect(0, 0, canvas.width, canvas.height);
-    const g = ctx2d.createRadialGradient(
-      canvas.width / 2, canvas.height * 0.4, 20,
-      canvas.width / 2, canvas.height * 0.4, canvas.width * 0.75
-    );
-    g.addColorStop(0, "rgba(30,30,60,0.35)");
-    g.addColorStop(1, "rgba(0,0,0,0)");
-    ctx2d.fillStyle = g;
+    // v3: туманность — 3 цветных радиальных пятна (медленно дышат).
+    const tNeb = now * 0.0003;
+    const nebulae = [
+      { x: 0.25, y: 0.3, r: 0.5, c: "rgba(80,40,160,0.10)" },
+      { x: 0.75, y: 0.65, r: 0.55, c: "rgba(20,80,160,0.09)" },
+      { x: 0.5, y: 0.5, r: 0.4, c: "rgba(160,40,120,0.07)" },
+    ];
+    for (let i = 0; i < nebulae.length; i++) {
+      const n = nebulae[i];
+      const px = canvas.width * n.x + Math.sin(tNeb + i) * 30;
+      const py = canvas.height * n.y + Math.cos(tNeb * 1.3 + i) * 20;
+      const pr = canvas.width * n.r * (0.9 + 0.1 * Math.sin(tNeb * 2 + i));
+      const g = ctx2d.createRadialGradient(px, py, 0, px, py, pr);
+      g.addColorStop(0, n.c);
+      g.addColorStop(1, "rgba(0,0,0,0)");
+      ctx2d.fillStyle = g;
+      ctx2d.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Дизер-паттерн (16-бит стиль) через createPattern — один проход.
+    if (!_ditherPat) {
+      const tc = document.createElement("canvas");
+      tc.width = 4; tc.height = 4;
+      const tg = tc.getContext("2d");
+      tg.fillStyle = t.glow || "#4a80ff";
+      tg.fillRect(0, 0, 2, 2);
+      tg.fillRect(2, 2, 2, 2);
+      _ditherPat = ctx2d.createPattern(tc, "repeat");
+    }
+    ctx2d.save();
+    const cx = canvas.width / 2, cy = canvas.height * 0.4;
+    const maxR = Math.max(canvas.width, canvas.height) * 0.75;
+    ctx2d.beginPath();
+    ctx2d.arc(cx, cy, maxR, 0, Math.PI * 2);
+    ctx2d.clip();
+    ctx2d.globalAlpha = 0.10;
+    ctx2d.fillStyle = _ditherPat;
     ctx2d.fillRect(0, 0, canvas.width, canvas.height);
-    // Звёзды.
+    ctx2d.restore();
+    // Звёзды: 2 слоя (параллакс), пиксельные квадраты, мерцание.
+    // Слой 0 (дальний): мелкие, медленные, тусклые.
+    // Слой 1 (ближний): крупные, быстрые, яркие.
     for (const st of stars) {
-      st.x += st.vx * dt;
-      st.y += st.vy * dt;
+      const speedMul = st.layer === 1 ? 1.0 : 0.35;
+      st.x += st.vx * dt * speedMul;
+      st.y += st.vy * dt * speedMul;
       if (st.x < 0) st.x += canvas.width;
       if (st.x > canvas.width) st.x -= canvas.width;
       if (st.y < 0) st.y += canvas.height;
       if (st.y > canvas.height) st.y -= canvas.height;
-      ctx2d.globalAlpha = st.a * (0.6 + 0.4 * Math.sin(now * 0.001 + st.x));
-      ctx2d.fillStyle = "#ffffff";
-      ctx2d.fillRect(Math.round(st.x), Math.round(st.y), st.r, st.r);
+      const baseA = st.layer === 1 ? st.a : st.a * 0.55;
+      ctx2d.globalAlpha = baseA * (0.6 + 0.4 * Math.sin(now * 0.001 + st.x));
+      // Цвет: дальний — голубоватый, ближний — белый/жёлтоватый.
+      ctx2d.fillStyle = st.layer === 1 ? "#ffffff" : "#8ca8e0";
+      // Дальний слой — 1px, ближний — 2px (пиксельно).
+      const sz = st.layer === 1 ? 2 : 1;
+      ctx2d.fillRect(Math.round(st.x), Math.round(st.y), sz, sz);
     }
     ctx2d.globalAlpha = 1;
   }
 
-  function drawCell(c) {
+  function drawCell(c, now) {
     const { x, y } = hexCenter(c.q, c.r);
     const poly = HEX.corners(x, y, size * 0.94);
     ctx2d.beginPath();
@@ -220,8 +269,19 @@ const Game = (() => {
         break;
       }
     }
-    ctx2d.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
-    ctx2d.fill();
+    // v3: мягкое свечение клетки под владельцем.
+    if (c.owner !== 0) {
+      const pulse2 = 0.5 + 0.5 * Math.sin((now || 0) * 0.002 + c.q + c.r);
+      ctx2d.save();
+      ctx2d.shadowColor = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
+      ctx2d.shadowBlur = 8 + 6 * pulse2;
+      ctx2d.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
+      ctx2d.fill();
+      ctx2d.restore();
+    } else {
+      ctx2d.fillStyle = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
+      ctx2d.fill();
+    }
     // Лёгкий оттенок сектора - цвет символический.
     const ch = sectorOfHex.get(c.q + "," + c.r);
     if (ch && sectorFlash[ch] > 0) {
@@ -257,9 +317,15 @@ const Game = (() => {
     ctx2d.stroke();
   }
 
+  // v2: 6 типов монстров на 7 каналов (kick = slime базовый).
   const SECTOR_TYPE = {
-    kick: "slime", snare: "robot", hat: "crystal",
-    bass: "robot", pad: "crystal", lead: "plasma", arp: "plasma",
+    kick:  "slime",   // центр
+    snare: "robot",   // snare-сектор
+    hat:   "crystal", // hat-сектор
+    bass:  "dragon",  // бас — тяжёлый
+    pad:   "ghost",   // пэд — воздушный
+    lead:  "plasma",  // лид — энергичный
+    arp:   "crystal", // арп — кристальный
   };
 
   function pickType(q, r) {
@@ -277,13 +343,24 @@ const Game = (() => {
     4: "rgba(46,204,113,0.45)",
   };
 
-  function drawMonster(q, r, owner, now) {
+  function drawMonster(q, r, owner, now, captureK) {
     const { x, y } = hexCenter(q, r);
-    const side = Math.max(8, Math.round(size * 0.9));
-    const scale = Math.max(1, Math.floor(side / 8));
+    // v2: спрайты 16x16, крупнее и детальнее.
+    const side = Math.max(16, Math.round(size * 1.0));
+    let scale = Math.max(1, Math.floor(side / 16));
     const type = pickType(q, r);
     const img = Sprites.get(owner, type, scale);
-    const w = img.width, h = img.height;
+    let w = img.width, h = img.height;
+    // Анимация захвата: сжатие (1.0 → 0.6 → 1.0) + вспышка.
+    const ck = captureK || 0;
+    let capScale = 1.0;
+    let flashA = 0;
+    if (ck > 0 && ck < 1) {
+      // Быстрое сжатие до 0.6 в первой половине, возврат во второй.
+      const k = ck < 0.5 ? ck * 2 : (1 - ck) * 2;
+      capScale = 0.6 + 0.4 * k;
+      flashA = (1 - k) * 0.7;
+    }
     // Glow-подсветка.
     const pulse = 0.85 + 0.15 * Math.sin(now * 0.003 + q * 0.7 + r * 1.3);
     ctx2d.save();
@@ -298,11 +375,23 @@ const Game = (() => {
     ctx2d.restore();
     // Сам монстр с лёгким "дыханием".
     const bob = Math.round(Math.sin(now * 0.004 + q + r) * 1.2);
+    const dw = Math.round(w * capScale), dh = Math.round(h * capScale);
     ctx2d.drawImage(
       img,
-      Math.round(x - w / 2),
-      Math.round(y - h / 2 + bob)
+      Math.round(x - dw / 2),
+      Math.round(y - dh / 2 + bob),
+      dw, dh
     );
+    // Вспышка при захвате.
+    if (flashA > 0) {
+      ctx2d.save();
+      ctx2d.globalAlpha = flashA;
+      ctx2d.fillStyle = "#ffffff";
+      ctx2d.beginPath();
+      ctx2d.arc(x, y, size * 0.55, 0, Math.PI * 2);
+      ctx2d.fill();
+      ctx2d.restore();
+    }
   }
 
   function drawEffects() {
@@ -335,7 +424,7 @@ const Game = (() => {
     if (AudioEngine.isReady && AudioEngine.isReady()) {
       Visualizer.draw(ctx2d, canvas.width, canvas.height, now || 0);
     }
-    for (const c of board.cells) drawCell(c);
+    for (const c of board.cells) drawCell(c, now || 0);
     // Подсветка ходов выбранной фишки.
     const curPlayer = board.turn;
     if (selected && humanTurn && (hotSeat || curPlayer === Board.P1)) {
@@ -349,9 +438,18 @@ const Game = (() => {
     if (hoverHex) drawHighlight(hoverHex.q, hoverHex.r, "#7d5fff", 1);
     // Курсор-клавиатура.
     if (kbdCursor) drawHighlight(kbdCursor.q, kbdCursor.r, "#ffe66d", 2);
-    // Монстры.
+    // Монстры (с анимацией захвата: сжатие при colorTween).
     for (const c of board.cells) {
-      if (c.owner !== 0) drawMonster(c.q, c.r, c.owner, now || 0);
+      if (c.owner !== 0) {
+        let captureK = 0;
+        for (const tw of colorTweens) {
+          if (tw.q === c.q && tw.r === c.r) {
+            captureK = Math.max(captureK, Math.min(1, tw.t / tw.dur));
+            break;
+          }
+        }
+        drawMonster(c.q, c.r, c.owner, now || 0, captureK);
+      }
     }
     if (showLegend) drawLegend();
     drawEffects();
@@ -575,6 +673,40 @@ const Game = (() => {
       if (AI.getLevel() === "hard") Achv.unlock("hard_win");
     }
     if (board.numPlayers === 4 && hotSeat) Achv.unlock("hotseat_4");
+    // v6 этап 7: записать прогресс планеты (счёт = инструменты x центр).
+    if (window.__currentPlanet && typeof Progress !== "undefined") {
+      const planet = Progress.PLANETS.find(p => p.id === window.__currentPlanet);
+      if (planet && p1win) {
+        // Инструменты: kick (базовый) + угловые сектора под P1 (max 7).
+        let ring = 0;
+        for (const ch of AudioEngine.CHANNELS) {
+          if (ch === "kick") continue;
+          const sm = sectorsSummary[ch];
+          if (sm && sm.owner === Board.P1) ring++;
+        }
+        const tools = 1 + ring;
+        const centerCell = board.map.get("0,0");
+        const center = !!(centerCell && centerCell.owner === Board.P1);
+        const rec = Progress.markWon(planet.id, tools, center);
+        if (typeof Toast !== "undefined") {
+          Toast.show("✓ " + planet.name + " освобождена: " +
+            tools + " инстр." + (center ? " + центр (x2)" : "") +
+            " = " + rec.score + " очк. Всего: " + Progress.totalScore(),
+            { color: "#2ecc71", dur: 5000 });
+        }
+        window.__lastPlanetResult = { id: planet.id, tools, center,
+                                      score: rec.score,
+                                      total: Progress.totalScore() };
+        const prBox = document.getElementById("overlay-planet-result");
+        if (prBox) {
+          prBox.textContent = "✓ " + planet.name + " освобождена: " +
+            tools + " инстр." + (center ? " + центр (×2)" : "") +
+            " = " + rec.score + " очк.\nВсего: " + Progress.totalScore();
+        }
+        const backBtn = document.getElementById("btn-planet-back");
+        if (backBtn) backBtn.style.display = "";
+      }
+    }
     // Финальный микс: все дорожки на максимум - "полная полифония".
     finalMix(ranked[0].player);
   }
@@ -821,6 +953,21 @@ const Game = (() => {
     };
   }
 
+  function screenFlash() {
+    const el = document.getElementById("screen-flash");
+    if (!el) return;
+    el.classList.remove("flash");
+    void el.offsetWidth;   // reflow — перезапуск анимации
+    el.classList.add("flash");
+  }
+  function fieldPunch() {
+    const st = document.getElementById("stage");
+    if (!st) return;
+    st.classList.remove("punch");
+    void st.offsetWidth;
+    st.classList.add("punch");
+  }
+
   function newGame() {
     const np = parseInt(document.getElementById("players-select").value, 10) || 2;
     board = Board.create(np);
@@ -831,7 +978,13 @@ const Game = (() => {
     effects = [];
     colorTweens = [];
     document.getElementById("overlay").classList.add("hidden");
+    const prBox0 = document.getElementById("overlay-planet-result");
+    if (prBox0) prBox0.textContent = "";
+    const backBtn0 = document.getElementById("btn-planet-back");
+    if (backBtn0) backBtn0.style.display = "none";
     updateHud();
+    screenFlash();
+    fieldPunch();
   }
 
   function bind() {
@@ -923,6 +1076,13 @@ const Game = (() => {
       renderAchv();
       document.getElementById("achv-modal").classList.remove("hidden");
     });
+    // v4: кнопка «?» → легенда интерфейса.
+    document.getElementById("btn-help").addEventListener("click", () => {
+      if (typeof Legend !== "undefined") Legend.open();
+    });
+    document.getElementById("legend-close").addEventListener("click", () => {
+      if (typeof Legend !== "undefined") Legend.close();
+    });
     document.getElementById("btn-lb").addEventListener("click", () => {
       renderLb();
       document.getElementById("lb-modal").classList.remove("hidden");
@@ -995,6 +1155,20 @@ const Game = (() => {
     document.getElementById("pe-apply").addEventListener("click", () => {
       PatternEditor.applyToGame();
     });
+    document.getElementById("pe-export").addEventListener("click", () => {
+      PatternEditor.exportSection();
+    });
+    document.getElementById("pe-import").addEventListener("click", () => {
+      document.getElementById("pe-file").click();
+    });
+    document.getElementById("pe-file").addEventListener("change", (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => { PatternEditor.importSection(reader.result); };
+      reader.readAsText(f);
+      e.target.value = "";
+    });
     document.getElementById("pe-channel").addEventListener("change", (e) => {
       if (PatternEditor.switchChannel) PatternEditor.switchChannel(e.target.value);
       else PatternEditor.open(e.target.value);
@@ -1022,6 +1196,24 @@ const Game = (() => {
       Replay.download(rec, "hexxagon_" + Date.now());
     });
     // Replay: импорт и воспроизведение.
+    // Скриншот поля в PNG.
+    document.getElementById("btn-shot").addEventListener("click", () => {
+      try {
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "hexxagon_" + Date.now() + ".png";
+          document.body.appendChild(a); a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          if (typeof Toast !== "undefined")
+            Toast.show("📷 Скриншот сохранён", { color: "#2ecc71" });
+        }, "image/png");
+      } catch (e) {}
+    });
+
     document.getElementById("btn-import").addEventListener("click", () => {
       document.getElementById("replay-file").click();
     });
@@ -1041,6 +1233,74 @@ const Game = (() => {
       e.target.value = "";
     });
     document.getElementById("btn-restart").addEventListener("click", newGame);
+    const btnMenu = document.getElementById("btn-menu");
+    if (btnMenu) btnMenu.addEventListener("click", () => {
+      if (typeof AudioEngine !== "undefined") AudioEngine.stop();
+      const gs = document.getElementById("game-screen");
+      if (gs) gs.classList.add("hidden");
+      if (typeof Menu !== "undefined") Menu.show();
+    });
+    const backBtn = document.getElementById("btn-planet-back");
+    if (backBtn) backBtn.addEventListener("click", () => {
+      document.getElementById("overlay").classList.add("hidden");
+      const gs = document.getElementById("game-screen");
+      if (gs) gs.classList.add("hidden");
+      if (typeof TechView !== "undefined") TechView.show();
+    });
+
+    // Титульный экран.
+    function hideTitle() {
+      const ts = document.getElementById("title-screen");
+      if (ts) ts.classList.add("hidden");
+    }
+    function showTitle() {
+      const ts = document.getElementById("title-screen");
+      if (ts) ts.classList.remove("hidden");
+    }
+    // При повторном запуске (флаг в localStorage) — скрыть сразу.
+    // При первом заходе — оставить титульник видимым.
+    const TITLE_KEY = "hexxagon_v2_title_seen";
+    if (localStorage.getItem(TITLE_KEY)) {
+      setTimeout(hideTitle, 50);
+    }
+    // v3: лор-заставка при первом заходе (вместо/перед титульником).
+    if (typeof Lore !== "undefined" && Lore.shouldShow()) {
+      setTimeout(() => { Lore.open(); }, 200);
+    }
+    const loreNext = document.getElementById("lore-next");
+    if (loreNext) loreNext.addEventListener("click", () => Lore.next());
+    const loreSkip = document.getElementById("lore-skip");
+    if (loreSkip) loreSkip.addEventListener("click", () => Lore.close());
+    window.__showLore = () => { if (typeof Lore !== "undefined") Lore.reset(); Lore.open(); };
+    function markTitleSeen() { localStorage.setItem(TITLE_KEY, "1"); }
+    const ts = document.getElementById("title-start");
+    if (ts) ts.addEventListener("click", () => {
+      hideTitle();
+      markTitleSeen();
+      if (AudioEngine.isReady && !AudioEngine.isRunning()) {
+        // Автозапуск звука после клика.
+        document.getElementById("btn-audio").click();
+      }
+    });
+    const tc = document.getElementById("title-continue");
+    if (tc) tc.addEventListener("click", () => {
+      hideTitle();
+      markTitleSeen();
+      if (typeof Autosave !== "undefined") Autosave.load && Autosave.load();
+    });
+    const tt = document.getElementById("title-tutorial");
+    if (tt) tt.addEventListener("click", () => {
+      hideTitle();
+      markTitleSeen();
+      if (typeof Tutorial !== "undefined") Tutorial.start();
+    });
+    const td = document.getElementById("title-demo");
+    if (td) td.addEventListener("click", () => {
+      hideTitle();
+      markTitleSeen();
+      startDemo();
+    });
+    window.__showTitle = showTitle;
 
     // --- Tutorial: обработчики кнопок "Пропустить" / "Далее" ---
     var btnTutSkip = document.getElementById("tut-skip");
@@ -1086,6 +1346,9 @@ const Game = (() => {
     var aiSeed = 0;
     function applyMusicSource() {
       const st = document.getElementById("style-select").value;
+      // v5: авторский трек-оммаж, если выбран.
+      if (musicSource === "author" && window.__applyAuthorTrack &&
+          window.__applyAuthorTrack()) return;
       if (musicSource === "ai" && typeof AIComposer !== "undefined") {
         if (!aiSeed) aiSeed = Math.floor(Math.random() * 1e9);
         const track = AIComposer.compose(st, aiSeed);
@@ -1100,12 +1363,54 @@ const Game = (() => {
     }
     window.__applyMusicSource = applyMusicSource;
 
+    // v5: авторский трек-оммаж.
+    function fillTrackList() {
+      const sel = document.getElementById("track-select");
+      if (!sel || typeof AuthorTracks === "undefined") return;
+      const st = document.getElementById("style-select").value;
+      const ids = AuthorTracks.forStyle(st);
+      sel.innerHTML = "";
+      const opt0 = document.createElement("option");
+      opt0.value = ""; opt0.textContent = "— трек стиля —";
+      sel.appendChild(opt0);
+      for (const id of ids) {
+        const tr = AuthorTracks.get(id);
+        const o = document.createElement("option");
+        o.value = id; o.textContent = tr.about || id;
+        sel.appendChild(o);
+      }
+    }
+    function applyAuthorTrack() {
+      const sel = document.getElementById("track-select");
+      if (!sel || !sel.value) return false;
+      const tr = AuthorTracks.get(sel.value);
+      if (!tr) return false;
+      AudioEngine.setStyle(tr);
+      document.getElementById("style-name").textContent = tr.about || tr.name;
+      return true;
+    }
+    window.__applyAuthorTrack = applyAuthorTrack;
     document.getElementById("music-source").addEventListener("change", (e) => {
       musicSource = e.target.value;
       document.getElementById("btn-reseed").style.display =
         musicSource === "ai" ? "" : "none";
+      // v5: показать селектор авторских треков.
+      const tsel = document.getElementById("track-select");
+      if (tsel) {
+        tsel.style.display = musicSource === "author" ? "" : "none";
+        if (musicSource === "author") fillTrackList();
+        else tsel.value = "";
+      }
       if (musicSource === "ai") aiSeed = Math.floor(Math.random() * 1e9);
       if (AudioEngine.isRunning && AudioEngine.isRunning()) applyMusicSource();
+    });
+    // v5: смена трека-оммажа.
+    document.getElementById("track-select").addEventListener("change", () => {
+      if (AudioEngine.isRunning && AudioEngine.isRunning()) applyAuthorTrack();
+    });
+    // v5: смена стиля — обновить список треков.
+    document.getElementById("style-select").addEventListener("change", () => {
+      fillTrackList();
     });
     document.getElementById("btn-reseed").addEventListener("click", () => {
       aiSeed = Math.floor(Math.random() * 1e9);
@@ -1135,15 +1440,42 @@ const Game = (() => {
     document.getElementById("status").textContent = "seed: " + gameSeed;
   }
 
+  // Разблокировка AudioContext по первому клику/тапу/клавише.
+  function bindAudioUnlock() {
+    const unlock = () => {
+      if (typeof AudioEngine === "undefined") return;
+      AudioEngine.resume();
+      // Если меню открыто и звук был разбужен — включить тему меню.
+      const menu = document.getElementById("menu-screen");
+      if (menu && !menu.classList.contains("hidden") &&
+          typeof Menu !== "undefined" && Menu.playTheme) {
+        Menu.playTheme();
+      }
+    };
+    ["click","touchstart","keydown"].forEach(ev =>
+      window.addEventListener(ev, unlock, { once: false, passive: true }));
+  }
+
   function init() {
     canvas = document.getElementById("board");
     ctx2d = canvas.getContext("2d");
     initSeed();
+    // Разблокировка аудио по первому жесту (autoplay-политика Chrome).
+    bindAudioUnlock();
     // Восстановить пользовательские стили.
     if (typeof UserStyles !== "undefined") UserStyles.restore();
     // Применить настройки.
     try {
       const cfg = Settings.load();
+      // v2: одноразовая миграция на SNES-тему (16-бит редизайн).
+      const V2KEY = "hexxagon_v2_theme_migrated";
+      if (!localStorage.getItem(V2KEY)) {
+        if (!cfg.theme || ["neon","classic","mono","phosphor"].includes(cfg.theme)) {
+          cfg.theme = "snes";
+          Settings.set("theme", "snes");
+        }
+        localStorage.setItem(V2KEY, "1");
+      }
       if (cfg.theme) { Themes.set(cfg.theme);
         document.getElementById("theme-select").value = cfg.theme; }
       if (cfg.lang) { I18n.set(cfg.lang); }
@@ -1162,6 +1494,12 @@ const Game = (() => {
     bind();
     renderPlayerStyles();
     applyI18n();
+    // v6: инициализация экранов.
+    if (typeof Menu !== "undefined") Menu.init();
+    if (typeof TechView !== "undefined") TechView.init();
+    if (typeof Tracker !== "undefined") Tracker.init();
+    if (typeof SettingsScreen !== "undefined") SettingsScreen.init();
+
     if (typeof Toast !== "undefined") {
       setTimeout(() => Toast.show("hexxagon_music · серия 6D",
         { color: "#2ecc71", dur: 3500 }), 300);
@@ -1173,6 +1511,68 @@ const Game = (() => {
 
   return {
     init, newGame, resize, renderPlayerStyles,
+    // v6: сюжетные точки входа.
+    startPlanet: function(planet, suit) {
+      if (typeof Menu !== "undefined") Menu.hide();
+      if (typeof TechView !== "undefined") TechView.hide();
+      const gs = document.getElementById("game-screen");
+      if (gs) gs.classList.remove("hidden");
+      // Скафандр = звуковой пак.
+      if (typeof SoundPacks !== "undefined" && suit) {
+        SoundPacks.set(suit);
+        const pk = document.getElementById("pack-select");
+        if (pk) pk.value = suit;
+      }
+      // Настройки партии от планеты.
+      const ps = document.getElementById("players-select");
+      if (ps) ps.value = "2";
+      const ms = document.getElementById("mode-select");
+      if (ms) ms.value = "vs-ai";
+      const al = document.getElementById("ai-level");
+      if (al) al.value = planet.ai || "medium";
+      if (typeof AI !== "undefined") AI.setLevel(planet.ai || "medium");
+      const ss = document.getElementById("style-select");
+      if (ss) ss.value = planet.style;
+      newGame();
+      window.__currentPlanet = planet.id;
+      // Запуск музыки планеты: случайный авторский трек этого стиля.
+      if (typeof AudioEngine !== "undefined") {
+        let track = null;
+        if (typeof AuthorTracks !== "undefined") {
+          const ids = AuthorTracks.forStyle(planet.style);
+          if (ids.length) {
+            const pick = ids[Math.floor(Math.random() * ids.length)];
+            track = AuthorTracks.get(pick);
+            window.__currentTrack = pick;
+          }
+        }
+        if (!track && typeof Styles !== "undefined") {
+          track = Styles.get(planet.style);
+        }
+        if (track) AudioEngine.setStyle(track);
+        const ba = document.getElementById("btn-audio");
+        if (ba && !AudioEngine.isRunning()) ba.click();
+        AudioEngine.start();
+      }
+    },
+    startQuick: function() {
+      if (typeof Menu !== "undefined") Menu.hide();
+      if (typeof TechView !== "undefined") TechView.hide();
+      const gs = document.getElementById("game-screen");
+      if (gs) gs.classList.remove("hidden");
+      newGame();
+      window.__currentPlanet = null;
+    },
+    start2P: function() {
+      if (typeof Menu !== "undefined") Menu.hide();
+      if (typeof TechView !== "undefined") TechView.hide();
+      const gs = document.getElementById("game-screen");
+      if (gs) gs.classList.remove("hidden");
+      const ms = document.getElementById("mode-select");
+      if (ms) ms.value = "hotseat";
+      newGame();
+      window.__currentPlanet = null;
+    },
     // Debug-API для sandbox-тестов.
     __debug: {
       board: () => board,
@@ -1187,4 +1587,9 @@ const Game = (() => {
   };
 })();
 
-window.addEventListener("DOMContentLoaded", Game.init);
+window.addEventListener("DOMContentLoaded", () => {
+  // v6: сначала меню.
+  if (typeof Menu !== "undefined") setTimeout(() => Menu.show(), 100);
+  Game.init();
+  if (typeof Icons !== "undefined") Icons.applyAll();
+});

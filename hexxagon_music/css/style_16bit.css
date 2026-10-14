@@ -1,0 +1,532 @@
+/* style_16bit.css - 16-битный ретро-стиль UI.
+   Подключается после style.css, переопределяет визуал.
+   Пиксельные рамки, двойные границы, свечение, bitmap-шрифт. */
+
+/* Пиксельный шрифт (Press Start 2P) с CDN. Если интернета нет —
+   сработает fallback monospace. Оффлайн-режим работает, вид проще. */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* Bitmap-шрифт для HUD/заголовков. */
+@font-face {
+  font-family: 'PixelFont';
+  src: local('Press Start 2P'), local('Courier New');
+  font-display: swap;
+}
+
+:root {
+  --px-border-light: #5a7ac0;
+  --px-border-dark: #1a2450;
+  --px-shadow: rgba(0, 0, 0, 0.6);
+  --px-glow: rgba(80, 160, 255, 0.4);
+  --px-bg-panel: #0c1638;
+  --px-bg-dark: #060a20;
+  --px-accent: #f8d860;
+}
+
+/* Угловатый шрифт (моно, но чуть шире). */
+body {
+  font-family: "Press Start 2P", "Courier New", "Lucida Console", monospace;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-shadow: 1px 1px 0 var(--px-shadow);
+}
+
+/* HUD: пиксельный шрифт, но чуть мельче — иначе не влезает. */
+#hud, #hud .hud-label, #hud .hud-val {
+  font-family: "Press Start 2P", "Courier New", monospace;
+}
+#hud .hud-label { font-size: 8px; letter-spacing: 2px; }
+#hud .hud-val   { font-size: 14px; }
+#hud .hud-val.small { font-size: 10px; }
+
+/* Заголовки модалок — тоже пиксельные. */
+.modal-content h3 {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 13px;
+}
+
+/* Кнопки — пиксельные, но читаемые. */
+button {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+/* Панель HUD: двойная рамка SNES-стиля. */
+#hud {
+  background: var(--px-bg-panel);
+  border: 2px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  box-shadow: inset 0 0 0 1px var(--px-border-dark),
+              0 2px 0 var(--px-shadow),
+              0 0 12px var(--px-glow);
+}
+
+.hud-label {
+  color: #8ca8e0;
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.hud-val {
+  color: #ffffff;
+  text-shadow: 0 0 6px var(--px-glow), 1px 1px 0 var(--px-shadow);
+}
+
+/* Поле: пиксельная рамка, тень. */
+#stage {
+  border: 3px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  box-shadow: inset 0 0 0 1px var(--px-border-dark),
+              0 0 20px var(--px-glow);
+  background: radial-gradient(circle at 50% 40%, #101838, #04060f 80%);
+}
+
+/* Кнопки: 16-битный вид, "нажимаются". */
+button {
+  background: linear-gradient(180deg, #2a3a6a 0%, #16224a 100%);
+  border: 2px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  border-radius: 0;
+  color: #e6f0ff;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-shadow: 1px 1px 0 var(--px-shadow);
+  box-shadow: 0 2px 0 var(--px-shadow);
+  padding: 6px 12px;
+}
+
+button:hover:not(:disabled) {
+  background: linear-gradient(180deg, #3a4a7a 0%, #1e2a5a 100%);
+  border-color: var(--px-accent);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: none;
+}
+
+button.primary {
+  background: linear-gradient(180deg, #e8409a 0%, #a01860 100%);
+  border-color: #ff70c0;
+}
+
+button.primary:hover { background: linear-gradient(180deg, #ff5aac 0%, #c02070 100%); }
+
+/* Селекты: пиксельный вид. */
+select {
+  background: var(--px-bg-dark);
+  border: 2px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  border-radius: 0;
+  color: #e6f0ff;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 var(--px-shadow);
+  padding: 6px 10px;
+}
+
+select:hover { border-color: var(--px-accent); }
+
+/* Футер — пиксельная панель. */
+#controls {
+  background: var(--px-bg-panel);
+  border: 2px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  box-shadow: inset 0 0 0 1px var(--px-border-dark),
+              0 0 12px var(--px-glow);
+}
+
+.ctrl-group {
+  border-left: 1px dashed #2a3a6a;
+}
+
+.ctrl-label {
+  color: #6a8acc;
+  text-shadow: none;
+}
+
+/* Стилевые точки игроков — пиксельные квадраты. */
+.styles-row .style-pick .dot {
+  border-radius: 0 !important;
+  border: 1px solid #000;
+  box-shadow: 0 0 4px currentColor;
+}
+
+/* Модалки: 16-битная рамка. */
+.modal-content {
+  background: var(--px-bg-panel);
+  border: 3px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  border-radius: 0;
+  box-shadow: 0 0 30px var(--px-glow),
+              inset 0 0 0 1px var(--px-border-dark);
+}
+
+.modal-content h3 {
+  color: var(--px-accent);
+  text-shadow: 0 0 8px rgba(248, 216, 96, 0.5),
+               1px 1px 0 var(--px-shadow);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+/* Дорожки в HUD — пиксельные теги. */
+.track-tag {
+  border-radius: 0;
+  border: 1px solid #000;
+  font-weight: 700;
+  text-shadow: none;
+}
+.track-tag.on {
+  box-shadow: 0 0 6px var(--ok);
+}
+
+/* Слайдер — пиксельный. */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 12px;
+  background: var(--px-bg-dark);
+  border: 2px solid var(--px-border-dark);
+  border-radius: 0;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 18px;
+  background: var(--px-accent);
+  border: 2px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+/* Тост — тоже пиксельный. */
+.toast {
+  border-radius: 0 !important;
+  border: 2px solid var(--px-border-light) !important;
+  box-shadow: 0 0 12px var(--px-glow) !important;
+  font-weight: 700;
+  text-shadow: 1px 1px 0 var(--px-shadow);
+}
+
+/* ===== Анимации 16-битного UI ===== */
+
+/* Пульсация свечения HUD (мягкая, 2.4с). */
+@keyframes px-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 1px var(--px-border-dark),
+                         0 2px 0 var(--px-shadow),
+                         0 0 8px var(--px-glow); }
+  50%      { box-shadow: inset 0 0 0 1px var(--px-border-dark),
+                         0 2px 0 var(--px-shadow),
+                         0 0 18px var(--px-glow); }
+}
+#hud {
+  animation: px-pulse 2.4s ease-in-out infinite;
+}
+
+/* Появление модалки: масштаб + прозрачность. */
+@keyframes px-modal-in {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.modal:not(.hidden) .modal-content {
+  animation: px-modal-in 0.18s ease-out;
+}
+
+/* Появление тоста: скольжение снизу. */
+@keyframes px-toast-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.toast {
+  animation: px-toast-in 0.2s ease-out;
+}
+
+/* Пульс активной кнопки звука. */
+@keyframes px-btn-glow {
+  0%, 100% { box-shadow: 0 2px 0 var(--px-shadow), 0 0 6px rgba(232,64,154,0.6); }
+  50%      { box-shadow: 0 2px 0 var(--px-shadow), 0 0 14px rgba(232,64,154,0.9); }
+}
+button.primary {
+  animation: px-btn-glow 1.8s ease-in-out infinite;
+}
+
+/* Мигание активного трека в HUD (теги оркестра). */
+@keyframes px-track-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.7; }
+}
+.track-tag.on {
+  animation: px-track-blink 1.2s ease-in-out infinite;
+}
+
+/* Мигание индикатора хода: когда ход человека. */
+@keyframes px-turn-blink {
+  0%, 100% { color: #ffffff; }
+  50%      { color: var(--px-accent); }
+}
+#turn {
+  animation: px-turn-blink 1.5s ease-in-out infinite;
+}
+
+/* Вспышка поля при победе (overlay). */
+@keyframes px-win-flash {
+  0%, 100% { text-shadow: 0 0 12px currentColor; }
+  50%      { text-shadow: 0 0 24px currentColor, 0 0 40px currentColor; }
+}
+#overlay-text {
+  animation: px-win-flash 1.6s ease-in-out infinite;
+}
+
+/* Плавный переход между темами (body). */
+body, #hud, #controls, #stage, .modal-content {
+  transition: background-color 0.25s ease, border-color 0.25s ease,
+              color 0.25s ease;
+}
+
+/* Уважаем prefers-reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  #hud, button.primary, .track-tag.on, #turn, #overlay-text,
+  .modal:not(.hidden) .modal-content, .toast {
+    animation: none !important;
+  }
+}
+
+
+/* ===== Титульный экран ===== */
+#title-screen {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 30px;
+  background: radial-gradient(circle at 50% 35%, #101838 0%, #04060f 75%);
+  transition: opacity 0.35s ease, visibility 0.35s;
+}
+#title-screen.hidden {
+  opacity: 0; visibility: hidden; pointer-events: none;
+}
+
+.title-logo { text-align: center; user-select: none; }
+.logo-line1 {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 44px;
+  color: #ff2e97;
+  letter-spacing: 6px;
+  text-shadow: 0 0 10px #ff2e97, 0 0 24px #a3145e,
+               3px 3px 0 #000, 6px 6px 0 rgba(0,0,0,0.4);
+  animation: title-glow 2s ease-in-out infinite;
+}
+.logo-line2 {
+  font-family: "Press Start 2P", "Courier New", monospace;
+  font-size: 22px;
+  color: #00e5ff;
+  letter-spacing: 14px;
+  margin-top: 12px;
+  text-shadow: 0 0 8px #00e5ff, 3px 3px 0 #000;
+}
+.logo-sub {
+  font-family: "Press Start 2P", monospace;
+  font-size: 9px;
+  color: #8ca8e0;
+  margin-top: 14px;
+  letter-spacing: 4px;
+}
+
+@keyframes title-glow {
+  0%, 100% { text-shadow: 0 0 10px #ff2e97, 0 0 24px #a3145e, 3px 3px 0 #000, 6px 6px 0 rgba(0,0,0,0.4); }
+  50%      { text-shadow: 0 0 20px #ff2e97, 0 0 44px #ff2e97, 3px 3px 0 #000, 6px 6px 0 rgba(0,0,0,0.4); }
+}
+
+.title-menu {
+  display: flex; flex-direction: column; gap: 10px;
+  min-width: 260px;
+}
+.title-menu button {
+  font-size: 12px;
+  padding: 12px 20px;
+  text-align: center;
+}
+
+.title-credits {
+  position: absolute; bottom: 24px;
+  font-family: "Press Start 2P", monospace;
+  font-size: 8px;
+  color: #4a5a8a;
+  letter-spacing: 3px;
+}
+
+/* Мигание подсказки на титульнике. */
+@keyframes title-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.6; }
+}
+.title-menu button.primary {
+  animation: title-pulse 1.4s ease-in-out infinite;
+}
+
+
+/* ===== Переходы между экранами (v2) ===== */
+
+/* Затемнение при старте (title → game). */
+@keyframes px-flash-in {
+  from { background-color: #ffffff; opacity: 1; }
+  to   { background-color: transparent; opacity: 0; }
+}
+#screen-flash {
+  position: fixed; inset: 0; z-index: 300; pointer-events: none;
+  background: transparent;
+}
+#screen-flash.flash {
+  animation: px-flash-in 0.28s ease-out forwards;
+}
+
+/* Overlay победы/поражения — плавное появление. */
+#overlay:not(.hidden) {
+  animation: px-overlay-in 0.4s ease-out;
+}
+@keyframes px-overlay-in {
+  from { opacity: 0; backdrop-filter: blur(0); }
+  to   { opacity: 1; backdrop-filter: blur(2px); }
+}
+
+/* Новая партия — лёгкое «приседание» поля. */
+@keyframes px-field-punch {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.97); }
+  100% { transform: scale(1); }
+}
+#stage.punch {
+  animation: px-field-punch 0.3s ease-out;
+}
+
+/* HUD — плавная смена значений счётчиков. */
+#score-p1, #score-p2, #move-count {
+  transition: color 0.2s ease, transform 0.15s ease;
+}
+#score-p1.bump, #score-p2.bump {
+  transform: scale(1.25);
+  color: var(--px-accent);
+}
+
+
+/* ===== Лор-заставка (v3) ===== */
+#lore-screen {
+  position: fixed; inset: 0; z-index: 250;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 20px;
+  background: radial-gradient(circle at 50% 45%, #101838 0%, #02040a 80%);
+  transition: opacity 0.4s ease, visibility 0.4s;
+}
+#lore-screen.hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+
+#lore-canvas {
+  width: min(640px, 90vw);
+  height: min(320px, 45vh);
+  image-rendering: pixelated;
+  border: 3px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  box-shadow: 0 0 24px var(--px-glow);
+  background: #04060f;
+}
+
+.lore-panel {
+  width: min(640px, 90vw);
+  background: var(--px-bg-panel);
+  border: 3px solid var(--px-border-light);
+  border-right-color: var(--px-border-dark);
+  border-bottom-color: var(--px-border-dark);
+  box-shadow: inset 0 0 0 1px var(--px-border-dark), 0 0 16px var(--px-glow);
+  padding: 18px 22px;
+}
+#lore-title {
+  font-family: "Press Start 2P", monospace;
+  font-size: 14px;
+  color: var(--px-accent);
+  letter-spacing: 3px;
+  margin: 0 0 14px;
+  text-shadow: 0 0 10px rgba(248,216,96,0.5), 2px 2px 0 #000;
+}
+#lore-text {
+  font-family: "Press Start 2P", monospace;
+  font-size: 10px;
+  line-height: 1.9;
+  color: #d0dcf0;
+  margin: 0 0 18px;
+  min-height: 60px;
+}
+.lore-bottom {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 12px;
+}
+#lore-dots { display: flex; gap: 6px; }
+.lore-dot {
+  width: 10px; height: 10px; border: 2px solid #3a4a7a;
+  background: #0a1228; display: inline-block;
+}
+.lore-dot.on { background: var(--px-accent); border-color: var(--px-accent); }
+.lore-buttons { display: flex; gap: 8px; }
+
+
+/* ===== Легенда интерфейса (v4) ===== */
+.legend-content { max-width: 760px; width: 94%; }
+.legend-body {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 14px;
+  max-height: 60vh;
+  margin-bottom: 8px;
+}
+#legend-list {
+  overflow-y: auto;
+  border-right: 2px solid var(--px-border-dark);
+  padding-right: 8px;
+}
+.legend-item {
+  font-family: "Press Start 2P", monospace;
+  font-size: 9px;
+  line-height: 1.6;
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border: 2px solid #1a2450;
+  background: #0a1228;
+  cursor: pointer;
+  color: #a0b4d8;
+}
+.legend-item:hover { border-color: var(--px-accent); color: #fff; }
+.legend-item.on {
+  background: #1a2450;
+  border-color: var(--px-accent);
+  color: var(--px-accent);
+}
+#legend-detail {
+  padding: 12px;
+  border: 2px solid var(--px-border-dark);
+  background: #080c1c;
+  overflow-y: auto;
+}
+#legend-detail h4 {
+  font-family: "Press Start 2P", monospace;
+  font-size: 11px;
+  color: var(--px-accent);
+  margin: 0 0 12px;
+  line-height: 1.6;
+}
+#legend-detail p {
+  font-family: "Press Start 2P", monospace;
+  font-size: 9px;
+  line-height: 2;
+  color: #c8d6ec;
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .legend-body { grid-template-columns: 1fr; }
+  #legend-list { border-right: none; border-bottom: 2px solid var(--px-border-dark); max-height: 160px; }
+}

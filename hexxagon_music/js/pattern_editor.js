@@ -164,5 +164,75 @@ const PatternEditor = (() => {
     }
   }
 
-  return { open, close, start, stop, applyToGame, switchSection, switchChannel, CHANNELS, N };
+  // Экспорт текущей секции в JSON-файл.
+  function exportSection() {
+    const st = Styles.get("retrowave");
+    const sec = st.sections[secIdx];
+    const pat = (sec && sec.pat) || {};
+    // Собрать полную копию всех каналов секции.
+    const out = {
+      version: 1,
+      style: "retrowave",
+      section: secIdx,
+      name: sec.name,
+      len: sec.len,
+      spb: 16,
+      channels: {},
+    };
+    for (const ch of CHANNELS) {
+      out.channels[ch] = (pat[ch] || []).slice();
+    }
+    // Текущий канал — с учётом правок в grid.
+    out.channels[current] = grid.slice();
+    const blob = new Blob([JSON.stringify(out, null, 2)],
+                          { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "hexxagon_section_" + sec.name + "_" + current + ".json";
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    if (typeof Toast !== "undefined")
+      Toast.show("Секция экспортирована", { color: "#2ecc71" });
+  }
+
+  // Импорт секции из JSON (заменяет каналы в grid и паттерне стиля).
+  function importSection(text) {
+    let data;
+    try { data = JSON.parse(text); }
+    catch (e) {
+      if (typeof Toast !== "undefined")
+        Toast.show("Ошибка JSON: " + e.message, { color: "#e74c3c" });
+      return false;
+    }
+    if (!data || !data.channels || !data.name) {
+      if (typeof Toast !== "undefined")
+        Toast.show("Неверный формат файла", { color: "#e74c3c" });
+      return false;
+    }
+    const st = Styles.get("retrowave");
+    // Если есть секция с таким именем — перезаписать; иначе добавить.
+    let idx = st.sections.findIndex(x => x.name === data.name);
+    if (idx < 0) {
+      st.sections.push({ name: data.name, len: data.len || 4,
+                         pat: data.channels });
+      idx = st.sections.length - 1;
+    } else {
+      st.sections[idx].pat = data.channels;
+    }
+    secIdx = idx;
+    const sec = st.sections[idx];
+    const pat = sec.pat || {};
+    const src = pat[current] || new Array(N).fill(0);
+    grid = src.slice(0, N).map(v => v || 0);
+    fillSections(st);
+    render();
+    if (typeof Toast !== "undefined")
+      Toast.show("Секция '" + data.name + "' импортирована", { color: "#2ecc71" });
+    return true;
+  }
+
+  return { open, close, start, stop, applyToGame, switchSection, switchChannel,
+           exportSection, importSection, CHANNELS, N };
 })();

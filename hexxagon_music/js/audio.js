@@ -121,8 +121,35 @@ const AudioEngine = (() => {
   function synthFor(ch) {
     const styleName = channelState[ch].style || "retrowave";
     const st = (typeof Styles !== "undefined") ? Styles.get(styleName) : null;
-    if (st && st.synth && st.synth[ch]) return st.synth[ch];
-    return null;
+    let spec = (st && st.synth && st.synth[ch]) ? Object.assign({}, st.synth[ch]) : null;
+    // v4: наложить SoundPack («железо») поверх стиля.
+    // Стиль — основа, пак корректирует тембр ударных и волну баса/лида.
+    if (spec && typeof SoundPacks !== "undefined") {
+      const pk = SoundPacks.current();
+      const mod = pk[ch];
+      if (mod) {
+        if (ch === "kick") {
+          if (mod.f0 != null) spec.f0 = mod.f0;
+          if (mod.f1 != null) spec.f1 = mod.f1;
+          if (mod.dur != null) spec.dur = mod.dur;
+          if (mod.type) spec.type = mod.type;
+        } else if (ch === "snare") {
+          if (mod.bp != null) spec.bp = mod.bp;
+          if (mod.dur != null) spec.dur = mod.dur;
+          if (mod.tone != null) spec.tone = mod.tone;
+        } else if (ch === "hat") {
+          if (mod.hp != null) spec.hp = mod.hp;
+          if (mod.dur != null) spec.dur = mod.dur;
+        } else if (ch === "bass" || ch === "lead") {
+          // Волну берём от пака, ADSR/фильтр — от стиля.
+          if (mod.type) spec.type = mod.type;
+          if (mod.lp0 != null && mod.lp0 > (spec.lp0 || 0)) spec.lp0 = mod.lp0;
+          if (mod.lp1 != null && mod.lp1 > (spec.lp1 || 0)) spec.lp1 = mod.lp1;
+          if (mod.detune != null) spec.detune = mod.detune;
+        }
+      }
+    }
+    return spec;
   }
 
   // --- ГОЛОСА ---
@@ -282,8 +309,15 @@ const AudioEngine = (() => {
   // Разворачиваем style.sections в линейный массив шагов.
   function rebuildTimeline() {
     const styleName = channelState[CHANNELS[0]].style || "retrowave";
-    const st = (typeof Styles !== "undefined") ? Styles.get(styleName) : null;
-    if (!st) return;
+    // Если активный стиль уже задан и совпадает по имени — берём его
+    // напрямую (theme_* треки НЕ в реестре Styles).
+    let st = null;
+    if (activeStyle && activeStyle.name === styleName && activeStyle.sections) {
+      st = activeStyle;
+    } else if (typeof Styles !== "undefined") {
+      st = Styles.get(styleName);
+    }
+    if (!st || !st.sections) return;
     activeStyle = st;
     bpm = st.bpm || 100;
     const spb = st.SPB || 16;
@@ -367,10 +401,21 @@ const AudioEngine = (() => {
 
   function schedulerTick() {
     if (!running || !ctx) return;
-    const stepDur = (60.0 / bpm) / 4;
+    const baseStep = (60.0 / bpm) / 4;
+    // v5: swing — сдвиг нечётных 8-х (шаги 2,6,10,14 при 16-сетке).
+    const swing = (activeStyle && activeStyle.swing) || 0;
     while (nextNoteTime < ctx.currentTime + lookahead) {
       scheduleStep(currentStep, nextNoteTime);
-      nextNoteTime += stepDur;
+      const stepInBar = currentStep % 16;
+      // Чётные 8-е играем ровно, нечётные — с задержкой.
+      let dur = baseStep;
+      if (swing > 0 && (stepInBar % 2 === 1)) {
+        // На «и» — задержка на swing-долю.
+        dur = baseStep * (1 + swing * 0.6);
+      } else if (swing > 0 && (stepInBar % 2 === 0) && (stepInBar % 4 === 2)) {
+        dur = baseStep * (1 - swing * 0.15);
+      }
+      nextNoteTime += dur;
       currentStep = (currentStep + 1) % totalSteps;
     }
   }
@@ -393,11 +438,40 @@ const AudioEngine = (() => {
   // Внешний API: принять стиль целиком.
   function setStyle(style) {
     if (!style) return;
+    // v6: сброс позиции секвенсора — иначе «хвост» старого трека.
+    currentStep = 0;
+    // Заглушить текущие голоса коротким «кликом» (быстрый спад гейнов).
+    if (ctx) {
+      const now = ctx.currentTime;
+      for (const ch of CHANNELS) {
+        if (trackGain[ch]) {
+          const g = trackGain[ch].gain;
+          g.cancelScheduledValues(now);
+          g.setValueAtTime(g.value, now);
+          g.linearRampToValueAtTime(0.0001, now + 0.03);
+        }
+      }
+    }
     // Записать имя стиля в каналы (чтобы synthFor знал).
     for (const ch of CHANNELS) channelState[ch].style = style.name;
     activeStyle = style;
     bpm = style.bpm || 100;
     rebuildTimeline();
+    // Перенести nextNoteTime вперёд — старт с чистого листа.
+    if (ctx) nextNoteTime = ctx.currentTime + 0.06;
+    // Восстановить гейны (после 40мс).
+    if (ctx) {
+      const now2 = ctx.currentTime + 0.05;
+      for (const ch of CHANNELS) {
+        if (trackGain[ch]) {
+          const st = channelState[ch];
+          const target = st.on ? (0.3 + 0.7 * st.density) : 0.0;
+          trackGain[ch].gain.cancelScheduledValues(now2);
+          trackGain[ch].gain.setValueAtTime(0.0001, now2);
+          trackGain[ch].gain.linearRampToValueAtTime(target, now2 + 0.05);
+        }
+      }
+    }
   }
 
   // Совместимость со старым API.
@@ -453,6 +527,10 @@ const AudioEngine = (() => {
   }
   function getState() { return channelState; }
   function getStep() { return currentStep; }
+  // v4: явный хук для смены пака (нужен для перерисовки HUD).
+  function setPack(name) {
+    if (typeof SoundPacks !== "undefined") SoundPacks.set(name);
+  }
   function getSectionInfo() {
     if (!activeStyle || !timeline.length) return null;
     const info = timeline[currentStep];
@@ -472,6 +550,6 @@ const AudioEngine = (() => {
   return { init, resume, start, stop, setPattern, setStyle, setChannel,
            getRMS, isRunning, isReady, getCtx, getBus, getAnalyser, syncGains,
            toggleMute, isMuted, setVolume,
-           isOn, getState, getStep, getSectionInfo, mtof, CHANNELS,
+           isOn, getState, getStep, setPack, getSectionInfo, mtof, CHANNELS,
            rebuildTimeline };
 })();

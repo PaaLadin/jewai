@@ -376,7 +376,12 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
       }
       if (!lastActionId) lastActionId = msg.actions[msg.actions.length - 1].id;
       await status("Отдаю отчёт в content", "info");
-      return respond({ results, nextId: suggestNext(lastActionId) });
+      // watermark-fix (15.10): nextId not below last successful
+      const _st = await get();
+      const _pref = (lastActionId || "").slice(0, 4);
+      const _wm = (_st.lastIds && _st.lastIds[_pref]) || "";
+      const _base = (_wm && cmpId(_wm, lastActionId) > 0) ? _wm : lastActionId;
+      return respond({ results, nextId: suggestNext(_base) });
     }
 
     if (msg.type === "confirm-pending") {

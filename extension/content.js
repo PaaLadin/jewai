@@ -337,7 +337,12 @@ async function scan() {
     const resp = await sendBg({ type: "batch", actions: fresh2 });
     if (!resp || resp.status === "PAUSED") return;
     const done = resp.results.filter(r => r.status !== "SKIP");
-    if (!done.length) { await report("Все уже были", "warn"); return; }
+    if (!done.length) {
+      await report("Все уже были", "warn");
+      // watermark-fix (15.10): all SKIP -> send report with nextId
+      if (resp.nextId) { await typeAndSend(buildReport([], resp.nextId)); lastSendAt = Date.now(); }
+      return;
+    }
     await typeAndSend(buildReport(done, resp.nextId));
     lastSendAt = Date.now();
     waitingForReply = true;

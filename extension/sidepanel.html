@@ -105,14 +105,6 @@
     <span class="chip" id="h-last">lastId …</span>
   </div>
 
-  <div id="tok" style="display:flex;gap:6px;align-items:center;margin:6px 0">
-    <span id="tok-text" class="small" style="white-space:nowrap">tokens —</span>
-    <div style="flex:1;height:6px;background:rgba(0,40,15,0.6);overflow:hidden">
-      <div id="tok-bar" style="height:100%;width:0%;background:#00ff66"></div>
-    </div>
-    <span id="tok-lamp" title="уровень заполнения"></span>
-    <button id="tok-reset" class="ghost" title="сбросить счётчики (после перерождения)">reset</button>
-  </div>
   <div id="counters">
     <div class="cnt" title="объём переписки (по innerText)">
       <span class="num" id="cnt-chars">—</span>
@@ -139,7 +131,6 @@
 
   <div class="row"><label style="width:60px">Token</label><input id="token" type="text" placeholder="X-Token"></div>
   <div class="row"><label style="width:60px">Agent</label><input id="url" type="text"></div>
-  <div class="row"><label style="width:60px">Prefix</label><input id="prefix" type="text" placeholder="AAAA / BBAA / CCAA / DDAA"></div>
   <div class="row"><label style="width:60px">lastId</label><input id="lastId" type="text" placeholder="AAAA0000">
     <button id="setLast">Set</button></div>
   <div class="row"><input type="checkbox" id="ac"><label for="ac">подтверждать автоматически</label></div>

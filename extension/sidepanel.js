@@ -63,7 +63,6 @@ async function healthCheck() {
 function render(state) {
   $("token").value = state.token || "";
   $("url").value = state.agentUrl || "";
-  if ($("prefix")) $("prefix").value = state.expectedPrefix || "";
   $("lastId").value = state.lastId || "";
   $("ac").checked = !!state.autoConfirm;
   $("pause").textContent = state.paused ? "Продолжить" : "Пауза";
@@ -79,16 +78,17 @@ function render(state) {
     + '<div class="small">' + new Date(st.ts).toLocaleTimeString()
     + (st.ids ? " · " + esc(st.ids.join(",")) : "") + '</div>';
 
-  const tk = state.tokenEstimate || 0;
-  const lim = state.tokenLimit || 3600;
-  const tkPct = Math.min(100, tk / lim * 100);
-  $("tok-text").textContent = "tokens ~" + tk.toLocaleString() + " / " + lim.toLocaleString() + " (" + tkPct.toFixed(1) + "%)";
-  const tb = $("tok-bar");
-  tb.style.width = tkPct + "%";
-  tb.style.background = tkPct >= 95 ? "#e05252" : tkPct >= 90 ? "#e05252" : tkPct >= 80 ? "#e6b02b" : "#3fbf6f";
-  const lamp = $("tok-lamp");
-  if (lamp) {
-    lamp.className = "tok-lamp " + (state.tokenLevel || "ok");
+  const _tokEl = $("tok-text");
+  if (_tokEl) {
+    const tk = state.tokenEstimate || 0;
+    const lim = state.tokenLimit || 3600;
+    const tkPct = Math.min(100, tk / lim * 100);
+    _tokEl.textContent = "tokens ~" + tk.toLocaleString() + " / " + lim.toLocaleString() + " (" + tkPct.toFixed(1) + "%)";
+    const tb = $("tok-bar");
+    if (tb) { tb.style.width = tkPct + "%";
+      tb.style.background = tkPct >= 95 ? "#e05252" : tkPct >= 90 ? "#e05252" : tkPct >= 80 ? "#e6b02b" : "#3fbf6f"; }
+    const lamp = $("tok-lamp");
+    if (lamp) { lamp.className = "tok-lamp " + (state.tokenLevel || "ok"); }
   }
   // v4: два счётчика — объём (по формуле) и число отправок.
   const vol = state.tokenEstimate || 0;
@@ -229,7 +229,6 @@ async function refresh() { lastState = await send({ type: "get-state" }); render
 
 $("token").addEventListener("change", e => send({ type: "set", patch: { token: e.target.value.trim() } }).then(refresh));
 $("url").addEventListener("change", e => send({ type: "set", patch: { agentUrl: e.target.value.trim() } }).then(refresh));
-if ($("prefix")) $("prefix").addEventListener("change", e => send({ type: "set", patch: { expectedPrefix: e.target.value.trim().toUpperCase() } }).then(refresh));
 $("ac").addEventListener("change", e => send({ type: "set", patch: { autoConfirm: e.target.checked } }).then(refresh));
 $("setLast").addEventListener("click", () => {
   const v = $("lastId").value.trim();
@@ -252,7 +251,7 @@ $("reset").addEventListener("click", () => {
 $("selftest").addEventListener("click", async () => {
   const tabs = await chrome.tabs.query({ url: "https://chat.deepseek.com/*" });
   const tab = tabs && tabs[0];
-  if (!tab) { $("selftest-box").innerHTML = "<div class='lvl-err'>нет вкладки LLM</div>"; return; }
+  if (!tab) { $("selftest-box").innerHTML = "<div class='lvl-err'>нет вкладки DeepSeek</div>"; return; }
   try {
     const r = await chrome.tabs.sendMessage(tab.id, { type: "selftest" });
     $("selftest-box").innerHTML = "<pre class='selftest'>" + esc(JSON.stringify(r, null, 2)) + "</pre>";
@@ -261,7 +260,7 @@ $("selftest").addEventListener("click", async () => {
   }
 });
 
-$("tok-reset").addEventListener("click", async () => {
+const _tokResetEl = $("tok-reset"); if (_tokResetEl) _tokResetEl.addEventListener("click", async () => {
   if (!confirm("Сбросить счётчик токенов? Делать после перерождения (новый чат).")) return;
   await send({ type: "set", patch: { tokenEstimate: 0, tokenPercent: 0, tokenWarned: {}, tokenLevel: "ok", sendCount: 0, sessionStartTs: Date.now() } });
   await send({ type: "status", text: "Счётчики токенов сброшены вручную (объём + отправки)", level: "warn" });

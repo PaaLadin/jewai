@@ -177,9 +177,6 @@ class H(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/ping":
             return self._j(200, {"ok": True, "root": str(ROOT), "version": "4.0.0",
-                                 "channel": _CHANNEL_INFO.get("channel"),
-                                 "prefix": _CHANNEL_INFO.get("prefix"),
-                                 "port": _CHANNEL_INFO.get("port"),
                                  "last_ts": _LAST_TS,
                                  "ago": round(time.time() - _LAST_TS, 1)})
         if self.path == "/health":
@@ -393,48 +390,35 @@ class H(BaseHTTPRequestHandler):
             return self._j(500, {"error": str(e)})
 
 
-# Определение канала и префикса по порту (для /ping).
-_CHANNEL_INFO = {"channel": None, "prefix": None}
-
-def _detect_channel(port):
-    """Прочитать config.json, вернуть (channel, prefix) для порта."""
+def _port_busy(port):
+    """True если порт занят. TCP-connect (живой слушатель) + bind без reuse."""
+    import socket
+    # 1. кто-то слушает?
+    c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    c.settimeout(0.5)
     try:
-        import json as _json
-        from pathlib import Path as _Path
-        cfg = _Path(__file__).resolve().parent.parent / "config.json"
-        if not cfg.exists():
-            return None, None
-        d = _json.loads(cfg.read_text(encoding="utf-8"))
-        for k, v in d.get("channels", {}).items():
-            if isinstance(v, dict) and int(v.get("agent", -1)) == int(port):
-                return k, v.get("prefix")
-    except Exception:
-        pass
-    return None, None
+        if c.connect_ex(("127.0.0.1", port)) == 0:
+            return True
+    finally:
+        c.close()
+    # 2. bind БЕЗ SO_REUSEADDR (на Windows он разрешает двойной bind)
+    b = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        b.bind(("127.0.0.1", port))
+        return False
+    except OSError:
+        return True
+    finally:
+        b.close()
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        port = int(sys.argv[1])
-    else:
-        # дефолт из config.json (канал A), fallback 8766
-        port = 8766
-        try:
-            import json
-            from pathlib import Path as _P
-            _cfg = _P(__file__).resolve().parent.parent / "config.json"
-            if _cfg.exists():
-                _d = json.loads(_cfg.read_text(encoding="utf-8"))
-                _ch = _d.get("channels", {})
-                if "A" in _ch and "agent" in _ch["A"]:
-                    port = int(_ch["A"]["agent"])
-        except Exception:
-            pass
-    _ch, _pfx = _detect_channel(port)
-    _CHANNEL_INFO["channel"] = _ch
-    _CHANNEL_INFO["prefix"] = _pfx
-    _CHANNEL_INFO["port"] = port
-    log("START", f"v2.1.5 {ROOT} :{port} channel={_ch} prefix={_pfx}")
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 8766
+    if _port_busy(port):
+        print(f"[guard] port {port} busy - already running, exit")
+        log("GUARD", f"port {port} busy - exit (no duplicate)")
+        sys.exit(0)
+    log("START", f"v2.1.5 {ROOT} :{port}")
     print("=== JewAI Agent v2.1.5 (voice-levels) ===")
     print("Root:     " + str(ROOT))
     print("Endpoint: http://127.0.0.1:" + str(port))

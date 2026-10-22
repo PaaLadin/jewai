@@ -3,7 +3,7 @@
 Печатает LIMIT или OK.
 Usage: python sandbox/chat_limit.py --port 9225
 """
-import argparse, sys
+import argparse, sys, os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from cdp_client import CDPSession, find_chat_target
 

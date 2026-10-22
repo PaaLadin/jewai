@@ -118,7 +118,26 @@ def step_first_line(pg, line, dry=True):
     print("    verify value=%r" % val[:40])
 
 
-def step_attach(pg, files, dry=True):
+def _attach_native(ctx, pg, files):
+    """Fallback: DOM.setFileInputFiles через CDP-сессию Playwright."""
+    try:
+        cdp = ctx.new_cdp_session(pg)
+        doc = cdp.send("DOM.getDocument")
+        node = cdp.send("DOM.querySelector",
+                        {"nodeId": doc["root"]["nodeId"],
+                         "selector": "input[type=file]"})
+        nid = node.get("nodeId")
+        if not nid:
+            return False
+        cdp.send("DOM.setFileInputFiles", {"files": files, "nodeId": nid})
+        cdp.detach()
+        return True
+    except Exception as e:
+        print("    native attach ERR: %r" % e)
+        return False
+
+
+def step_attach(pg, files, dry=True, ctx=None):
     print("  [3] прикрепить: %s" % files)
     if dry:
         return
@@ -129,12 +148,20 @@ def step_attach(pg, files, dry=True):
     time.sleep(3)
     # verify: в DOM появились имена файлов
     body = pg.evaluate("() => document.body ? document.body.innerText : ''") or ""
+    missing = []
     for f in files:
         name = f.split("\\")[-1].split("/")[-1]
         if name in body:
             print("    attached: %s" % name)
         else:
-            print("    !! NOT attached: %s" % name)
+            missing.append(name)
+    if missing and ctx is not None:
+        print("    fallback native attach (missing: %s)" % missing)
+        if _attach_native(ctx, pg, files):
+            time.sleep(2)
+            body = pg.evaluate("() => document.body ? document.body.innerText : ''") or ""
+            for name in missing:
+                print("    %s: %s" % ("attached(retry)" if name in body else "!! STILL MISSING", name))
 
 
 def step_send(pg, dry=True):
@@ -285,7 +312,7 @@ def run(ch, live=False, table=None):
                 print("    export_share ERR: %r" % e)
         pg = step_new_chat(ctx, pg, dry=False)
         step_first_line(pg, "%s %s" % (info["next_series"], info["name"]))
-        step_attach(pg, [act, prompt])
+        step_attach(pg, [act, prompt], ctx=ctx)
         new_url = step_send(pg)
         # запись в лог + обновление таблицы — ВСЕГДА (не зависеть от new_url)
         log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")

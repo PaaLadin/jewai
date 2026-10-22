@@ -106,20 +106,24 @@ def master(ch, live=False):
         print("    [gate] ЧАТ ПЕРЕПОЛНЕН (триггер №2) — порог игнорируется, перерождаем.")
     elif os.path.exists(force):
         print("    [gate] force-флаг есть — перерождаем (cmds=%s)" % cmds)
-        try:
-            os.remove(force)
-        except Exception:
-            pass
+        if live:
+            try:
+                os.remove(force)
+            except Exception:
+                pass
     elif os.path.exists(hold):
         print("    [gate] HOLD-режим: порог 850 ОТКЛЮЧЁН (cmds=%s)." % cmds)
         print("    [gate] Ждём переполнения чата (триггер №2) или force.")
         # не перерождаем; снимаем ready, чтобы не спамить (watchdog
         # поставит ready сам при переполнении чата)
-        try:
-            os.remove(flag)
-            print("    flag removed (hold): %s" % flag)
-        except Exception:
-            pass
+        if live:
+            try:
+                os.remove(flag)
+                print("    flag removed (hold): %s" % flag)
+            except Exception:
+                pass
+        else:
+            print("    (dry-run: flag НЕ снят)")
         return 8
     elif cmds is not None and cmds < 850:
         print("    [gate] cmds=%d < 850, перерождение ОТКЛОНЕНО." % cmds)

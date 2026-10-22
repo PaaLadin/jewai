@@ -64,6 +64,23 @@
 
 ---
 
+
+### Gamedev (наработки hexxagon_music)
+
+- `gamedev/INDEX.md`
+- `gamedev/blues_brothers.md`
+- `gamedev/chiptune_composition.md`
+- `gamedev/hexxagon_original.md`
+- `gamedev/lines_nikita.md`
+- `gamedev/moonwalker_fm.md`
+- `gamedev/music_styles.md`
+- `gamedev/pixel_art_canvas.md`
+- `gamedev/polyphonic_ringtones.md`
+- `gamedev/retro_games_8_16bit.md`
+- `gamedev/rock_racing.md`
+- `gamedev/synth_recipes.md`
+- `gamedev/web_audio_tracker.md`
+
 ## Правило пополнения
 
 Возникло «а как правильно» — файл в `procedures/`, строка здесь.
@@ -74,3 +91,4 @@ README внутри каждой категории.
 - `../emergency/README.md` — активация, передача смены,
   восстановление.
 - `../algorithms/INDEX.md` — процедуры разработки.
+- `procedures/replay_stale_blocks.md` — повторное исполнение старых блоков (инцидент 22.10)

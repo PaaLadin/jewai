@@ -84,6 +84,7 @@ try:
             "cdp": int(_v.get("cdp", 0)),
             "color": _v.get("color", _PALETTE[_i % len(_PALETTE)]),
             "todo": _v.get("todo", "TODO_%s.md" % _L),
+            "extension": _v.get("extension", ""),
         }
         CHANNEL_PREFIXES[_L] = _v.get("prefix", _L + _L + "AA")
 except Exception:
@@ -169,17 +170,40 @@ def _no_window_flags(detach=False):
     return f
 
 
+_KICK_DROPPED = ROOT / "logs" / "kick_dropped.log"
+
+
+def _kick_worker(port, text, attempts=3):
+    """Фон-кик с ретраями. REFUSED (textarea busy) -> ждём, повтор.
+    Все попытки провалились -> лог dropped (не теряем молча)."""
+    _kick_script = BRIDGE_KICK3 if int(port) in SPA_CDP_PORTS else BRIDGE_KICK2
+    last_rc = None
+    for i in range(attempts):
+        try:
+            r = subprocess.run(
+                [_sys.executable, str(_kick_script), "--port", str(port),
+                 "--text", text, "--wait-empty", "15"],
+                cwd=str(ROOT), capture_output=True, text=True, timeout=40,
+                encoding="utf-8", errors="replace",
+                creationflags=_no_window_flags())
+            last_rc = r.returncode
+            if r.returncode == 0:
+                return
+        except Exception as e:
+            last_rc = "exc:" + repr(e)[:80]
+        time.sleep(8)
+    try:
+        _KICK_DROPPED.parent.mkdir(parents=True, exist_ok=True)
+        with _KICK_DROPPED.open("a", encoding="utf-8") as f:
+            f.write("[%s] port=%s rc=%s text=%s\n" % (
+                time.strftime("%H:%M:%S"), port, last_rc, (text or "")[:200]))
+    except Exception:
+        pass
+
+
 def kick(port, text):
     try:
-        _kick_script = BRIDGE_KICK3 if int(port) in SPA_CDP_PORTS else BRIDGE_KICK2
-        subprocess.Popen(
-            [_sys.executable, str(_kick_script), "--port", str(port), "--text", text, "--wait-empty", "10"],
-            cwd=str(ROOT),
-            creationflags=_no_window_flags(detach=True),
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        threading.Thread(target=_kick_worker, args=(port, text), daemon=True).start()
     except Exception as e:
         print("kick fail", port, e)
 
@@ -845,77 +869,97 @@ def collect_localai_status():
 
 
 
-# ===== LAUNCHPAD_BLOCK (B, additive) =====
-# Пульт управления: boot/stop/restart сервисов и агентов.
-# Живой сервер = пилот (self), его boot/restart запрещены, stop - только
-# с явного подтверждения оператора (не через каскад).
-
+# ===== LAUNCHPAD_BLOCK (B, v2: netstat, без PowerShell на критпути) =====
 LP_AGENT_SCRIPT = ROOT / "extension" / "agent.py"
-LP_SERVER_SCRIPT = ROOT / "sandbox" / "council_chat" / "server.py"
 LP_DOH_SCRIPT = ROOT / "sandbox" / "doh_proxy.py"
 LP_MAILBOT_SCRIPT = ROOT / "projects" / "mail_bot" / "mail_bot.py"
-LP_WATCHDOG_SCRIPT = ROOT / "sandbox" / "la_watchdog.py"
+LP_WATCHDOG_SCRIPT = ROOT / "sandbox" / "la_rebirth_monitor.py"
+LP_LOG_DIR = ROOT / "logs"
+LP_SPAWNED = ROOT / "runtime" / "lp_spawned.json"
+
+_lp_ports_cache = {"ts": 0.0, "map": {}}
+_lp_cdp_cache = {"ts": 0.0, "map": {}}
+_lp_lada_cache = {"ts": 0.0, "val": None}
 
 
-_lp_snap_cache = {"ts": 0.0, "rows": []}
-
-
-def _lp_ps(cmd):
-    try:
-        r = subprocess.run(["powershell", "-NoProfile", "-Command", cmd],
-                           capture_output=True, text=True, timeout=10,
-                           encoding="utf-8", errors="replace",
-                           creationflags=_no_window_flags())
-        return (r.stdout or "").strip()
-    except Exception:
-        return ""
-
-
-def _lp_snapshot():
-    """Один снимок процессов (python/pythonw/chrome) с CommandLine.
-    Кэш 2с, чтобы не звать PowerShell 15 раз на каждый запрос.
-    Возвращает список (pid, name_lower, cmdline_lower)."""
+def _lp_cdp_ok(port, pid, ttl=15):
+    """CDP-проба с кэшем 15с (6 Chrome разом = дорого)."""
     now = time.time()
-    c = _lp_snap_cache
-    if c["rows"] and (now - c["ts"]) < 2.0:
-        return c["rows"]
-    cmd = ("Get-CimInstance Win32_Process | "
-           "Where-Object { $_.Name -eq 'python.exe' -or $_.Name -eq 'pythonw.exe' "
-           "-or $_.Name -eq 'chrome.exe' } | "
-           "ForEach-Object { $_.ProcessId.ToString() + '|' + $_.Name + '|' + $_.CommandLine }")
-    out = _lp_ps(cmd)
-    rows = []
-    for ln in out.splitlines():
-        parts = ln.split("|", 2)
-        if len(parts) == 3 and parts[0].strip().isdigit():
-            rows.append((int(parts[0]), parts[1].lower(), (parts[2] or "").lower()))
+    c = _lp_cdp_cache
+    key = int(port)
+    prev = c["map"].get(key)
+    if prev and (now - c["ts"]) < ttl and (now - prev[0]) < ttl:
+        return prev[1]
+    ok = False
+    if pid:
+        try:
+            with urllib.request.urlopen(
+                    "http://127.0.0.1:%d/json/version" % port, timeout=0.7) as r:
+                ok = r.status == 200
+        except Exception:
+            ok = False
+    c["map"][key] = (now, ok)
     c["ts"] = now
-    c["rows"] = rows
-    return rows
+    return ok
 
 
-def _lp_pids_for(marker, also=None):
-    """pid процессов python/pythonw, в CommandLine которых marker (и also)."""
-    m = marker.lower()
-    a = also.lower() if also else None
-    out = []
-    for pid, name, cl in _lp_snapshot():
-        if "python" not in name:
-            continue
-        if m in cl and (a is None or a in cl):
-            out.append(pid)
-    return out
+def _lp_log(op, target, rc, extra=""):
+    """Лог действий пульта на диск (и в консоль)."""
+    try:
+        LP_LOG_DIR.mkdir(parents=True, exist_ok=True)
+        fn = LP_LOG_DIR / ("launchpad_%s.log" % time.strftime("%Y-%m-%d"))
+        line = "[%s] %-8s %-14s rc=%s %s" % (time.strftime("%H:%M:%S"), op, target, rc, extra)
+        with fn.open("a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
 
 
-def _lp_chrome_pids(letter):
-    prof = ("runtime\\chrome\\%s" % letter).lower()
-    out = []
-    for pid, name, cl in _lp_snapshot():
-        if name != "chrome.exe":
-            continue
-        if prof in cl:
-            out.append(pid)
-    return out
+def _lp_ports():
+    """port -> pid из netstat -ano (быстро ~0.16с, кэш 2с)."""
+    now = time.time()
+    c = _lp_ports_cache
+    if c["map"] and (now - c["ts"]) < 2.0:
+        return c["map"]
+    m = {}
+    try:
+        r = subprocess.run(["netstat", "-ano", "-p", "tcp"], capture_output=True,
+                           text=True, timeout=8, encoding="utf-8", errors="replace",
+                           creationflags=_no_window_flags())
+        for line in (r.stdout or "").splitlines():
+            parts = line.split()
+            if len(parts) >= 5 and parts[3] == "LISTENING":
+                addr = parts[1]
+                if ":" in addr:
+                    p = addr.rsplit(":", 1)[1]
+                    if p.isdigit():
+                        m[int(p)] = int(parts[4])
+    except Exception:
+        pass
+    c["ts"] = now
+    c["map"] = m
+    return m
+
+
+def _lp_pid_by_port(port):
+    return _lp_ports().get(int(port))
+
+
+def _lp_spawned_load():
+    if not LP_SPAWNED.exists():
+        return {}
+    try:
+        return json.loads(LP_SPAWNED.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _lp_spawned_save(d):
+    try:
+        LP_SPAWNED.parent.mkdir(parents=True, exist_ok=True)
+        LP_SPAWNED.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def _lp_kill(pid):
@@ -923,18 +967,30 @@ def _lp_kill(pid):
         subprocess.run(["taskkill", "/PID", str(int(pid)), "/T", "/F"],
                        capture_output=True, timeout=10,
                        creationflags=_no_window_flags())
+        return True
     except Exception:
-        pass
+        return False
 
 
-def _lp_spawn(args, cwd):
+def _lp_pid_alive(pid):
+    """Жив ли pid - через OpenProcess (ctypes, мгновенно, без tasklist)."""
+    if not pid:
+        return False
     try:
-        p = subprocess.Popen(args, cwd=str(cwd), stdin=subprocess.DEVNULL,
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                             creationflags=_no_window_flags(detach=True))
-        return p.pid
-    except Exception as e:
-        return None
+        import ctypes
+        PROCESS_QUERY_LIMITED = 0x1000
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(PROCESS_QUERY_LIMITED, False, int(pid))
+        if not h:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+            return bool(ok) and code.value == 259  # STILL_ACTIVE
+        finally:
+            k.CloseHandle(h)
+    except Exception:
+        return False
 
 
 def _lp_pythonw():
@@ -944,6 +1000,20 @@ def _lp_pythonw():
         if Path(cand).exists():
             return cand
     return exe
+
+
+def _lp_spawn(args, cwd, key):
+    try:
+        p = subprocess.Popen(args, cwd=str(cwd), stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             creationflags=_no_window_flags(detach=True))
+        d = _lp_spawned_load()
+        d[key] = p.pid
+        _lp_spawned_save(d)
+        return p.pid
+    except Exception as e:
+        _lp_log("spawn", key, "ERR", repr(e)[:120])
+        return None
 
 
 def _lp_agent_port(L):
@@ -958,61 +1028,53 @@ def _lp_cdp_port(L):
 
 def lp_status():
     out = {"ok": True, "ts": time.time(), "blocks": {}}
-    # server (self)
+    ports = _lp_ports()
     out["blocks"]["server"] = {"on": True, "self": True, "port": PORT}
-    # агенты
     for L in CHANNELS:
         port = _lp_agent_port(L)
-        pids = _lp_pids_for("agent.py", str(port))
-        pinfo = ping_agent(port) if pids else None
-        out["blocks"]["agent:" + L] = {"on": bool(pids), "port": port,
-                                       "ping": bool(pinfo), "pids": pids}
-    # chrome
+        pid = ports.get(port)
+        pinfo = ping_agent(port) if pid else None
+        out["blocks"]["agent:" + L] = {"on": bool(pid), "port": port,
+                                       "ping": bool(pinfo), "pid": pid}
     for L in CHANNELS:
         cdp = _lp_cdp_port(L)
-        pids = _lp_chrome_pids(L)
-        alive = False
-        if pids:
-            try:
-                with urllib.request.urlopen("http://127.0.0.1:%d/json/version" % cdp, timeout=2) as r:
-                    alive = r.status == 200
-            except Exception:
-                alive = False
-        out["blocks"]["chrome:" + L] = {"on": bool(pids), "port": cdp,
-                                        "tcp": tcp_alive(cdp) if pids else False,
-                                        "cdp_ok": alive, "pids": pids}
-    # доп-сервисы
-    doh_pids = _lp_pids_for("doh_proxy")
-    out["blocks"]["doh"] = {"on": bool(doh_pids), "port": 9999,
-                            "tcp": tcp_alive(9999) if doh_pids else False, "pids": doh_pids}
-    mb_pids = _lp_pids_for("mail_bot")
-    out["blocks"]["mailbot"] = {"on": bool(mb_pids), "pids": mb_pids}
-    wd_pids = _lp_pids_for("la_watchdog")
-    out["blocks"]["rebirth"] = {"on": bool(wd_pids), "pids": wd_pids,
-                                "name": "Перерождение"}
+        pid = ports.get(cdp)
+        alive = _lp_cdp_ok(cdp, pid)
+        out["blocks"]["chrome:" + L] = {"on": bool(pid), "port": cdp,
+                                        "tcp": bool(pid), "cdp_ok": alive, "pid": pid}
+    doh_pid = ports.get(9999)
+    out["blocks"]["doh"] = {"on": bool(doh_pid), "port": 9999, "tcp": bool(doh_pid), "pid": doh_pid}
+    sp = _lp_spawned_load()
+    mb_pid = sp.get("mailbot")
+    out["blocks"]["mailbot"] = {"on": _lp_pid_alive(mb_pid), "pid": mb_pid, "byfile": True}
+    wd_pid = sp.get("rebirth")
+    out["blocks"]["rebirth"] = {"on": _lp_pid_alive(wd_pid), "pid": wd_pid,
+                                "name": "Перерождение", "byfile": True}
     try:
-        _la = collect_localai_status()
+        _lc = _lp_lada_cache
+        if _lc["val"] is None or (time.time() - _lc["ts"]) > 30:
+            _lc["val"] = collect_localai_status()
+            _lc["ts"] = time.time()
+        _la = _lc["val"]
         lada_on = bool(_la.get("llama") or _la.get("server"))
         out["blocks"]["lada"] = {"on": lada_on, "llama": _la.get("llama"),
-                                 "server": _la.get("server"),
-                                 "rag": _la.get("rag"), "info_only": True,
-                                 "name": "Лада (local_ai)"}
+                                 "server": _la.get("server"), "rag": _la.get("rag"),
+                                 "info_only": True, "name": "Лада (local_ai)"}
     except Exception:
-        out["blocks"]["lada"] = {"on": False, "info_only": True,
-                                 "name": "Лада (local_ai)"}
+        out["blocks"]["lada"] = {"on": False, "info_only": True, "name": "Лада (local_ai)"}
     return out
 
 
 def lp_boot(target):
     if target == "all":
-        res = []
-        res.append(lp_boot("doh"))
+        res = [lp_boot("doh")]
         for L in CHANNELS:
             res.append(lp_boot("agent:" + L))
         for L in CHANNELS:
             res.append(lp_boot("chrome:" + L))
         res.append(lp_boot("mailbot"))
         res.append(lp_boot("rebirth"))
+        _lp_log("boot", "all", "OK")
         return {"ok": True, "target": "all", "results": res}
     if target == "server":
         return {"ok": False, "target": target, "error": "server is the pilot, cannot boot self"}
@@ -1021,19 +1083,20 @@ def lp_boot(target):
         if L not in CHANNELS:
             return {"ok": False, "target": target, "error": "bad letter"}
         port = _lp_agent_port(L)
-        if _lp_pids_for("agent.py", str(port)):
+        if _lp_pid_by_port(port):
             return {"ok": True, "target": target, "already": True}
         pid = _lp_spawn([_lp_pythonw(), str(LP_AGENT_SCRIPT), str(port)],
-                        LP_AGENT_SCRIPT.parent)
+                        LP_AGENT_SCRIPT.parent, target)
+        _lp_log("boot", target, "OK" if pid else "ERR", "pid=%s" % pid)
         return {"ok": bool(pid), "target": target, "pid": pid}
     if target.startswith("chrome:"):
         L = target.split(":", 1)[1]
         if L not in CHANNELS:
             return {"ok": False, "target": target, "error": "bad letter"}
         cdp = _lp_cdp_port(L)
-        if _lp_chrome_pids(L):
+        if _lp_pid_by_port(cdp):
             return {"ok": True, "target": target, "already": True}
-        chrome = "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        chrome = os.environ.get("PROGRAMFILES", r"C:\Program Files") + r"\Google\Chrome\Application\chrome.exe"
         prof = ROOT / "runtime" / "chrome" / L
         ext_name = CHANNELS.get(L, {}).get("extension", "extension")
         ext = ROOT / ext_name
@@ -1045,33 +1108,39 @@ def lp_boot(target):
                 "--disable-renderer-backgrounding",
                 "--disable-background-timer-throttling",
                 "--no-first-run", "--no-default-browser-check",
-                "--restore-last-session"]
-        pid = _lp_spawn(args, ROOT)
+                "--restore-last-session", "--hide-crash-restore-bubble"]
+        pid = _lp_spawn(args, ROOT, target)
+        _lp_log("boot", target, "OK" if pid else "ERR", "pid=%s" % pid)
         return {"ok": bool(pid), "target": target, "pid": pid}
     if target == "doh":
-        if _lp_pids_for("doh_proxy"):
+        if _lp_pid_by_port(9999):
             return {"ok": True, "target": target, "already": True}
         pid = _lp_spawn([_lp_pythonw(), str(LP_DOH_SCRIPT), "--port", "9999"],
-                        LP_DOH_SCRIPT.parent)
+                        LP_DOH_SCRIPT.parent, "doh")
+        _lp_log("boot", target, "OK" if pid else "ERR", "pid=%s" % pid)
         return {"ok": bool(pid), "target": target, "pid": pid}
     if target == "mailbot":
-        if _lp_pids_for("mail_bot"):
+        sp = _lp_spawned_load()
+        if _lp_pid_alive(sp.get("mailbot")):
             return {"ok": True, "target": target, "already": True}
         if not LP_MAILBOT_SCRIPT.exists():
             return {"ok": False, "target": target, "error": "no script"}
         pid = _lp_spawn([_lp_pythonw(), str(LP_MAILBOT_SCRIPT), "--loop"],
-                        LP_MAILBOT_SCRIPT.parent)
+                        LP_MAILBOT_SCRIPT.parent, "mailbot")
+        _lp_log("boot", target, "OK" if pid else "ERR", "pid=%s" % pid)
         return {"ok": bool(pid), "target": target, "pid": pid}
     if target == "rebirth":
-        if _lp_pids_for("la_watchdog"):
+        sp = _lp_spawned_load()
+        if _lp_pid_alive(sp.get("rebirth")):
             return {"ok": True, "target": target, "already": True}
         if not LP_WATCHDOG_SCRIPT.exists():
             return {"ok": False, "target": target, "error": "no script"}
         pid = _lp_spawn([_lp_pythonw(), str(LP_WATCHDOG_SCRIPT), "--loop", "1200",
-                         "--rebirth-monitor"], LP_WATCHDOG_SCRIPT.parent)
+                         "--rebirth-monitor"], LP_WATCHDOG_SCRIPT.parent, "rebirth")
+        _lp_log("boot", target, "OK" if pid else "ERR", "pid=%s" % pid)
         return {"ok": bool(pid), "target": target, "pid": pid}
     if target == "lada":
-        return {"ok": False, "target": target, "error": "lada info only (управление через вкладку Локальный AI)"}
+        return {"ok": False, "target": target, "error": "lada info only"}
     return {"ok": False, "target": target, "error": "unknown target"}
 
 
@@ -1085,52 +1154,104 @@ def lp_stop(target):
         for L in reversed(list(CHANNELS.keys())):
             res.append(lp_stop("agent:" + L))
         res.append(lp_stop("doh"))
-        res.append({"ok": True, "target": "server", "note": "self not killed in cascade"})
-        return {"ok": True, "target": "all", "results": res}
+        killed = _lp_stop_stray_pythons()
+        res.append({"ok": True, "target": "server", "note": "self not killed"})
+        _lp_log("stop", "all", "OK", "stray=%d" % len(killed))
+        return {"ok": True, "target": "all", "results": res, "stray_killed": killed}
     if target == "server":
         return {"ok": False, "target": target, "error": "server stop requires explicit operator action"}
     if target.startswith("agent:"):
         L = target.split(":", 1)[1]
-        port = _lp_agent_port(L)
-        pids = _lp_pids_for("agent.py", str(port))
-        for p in pids:
-            _lp_kill(p)
-        return {"ok": True, "target": target, "stopped": pids}
+        pid = _lp_pid_by_port(_lp_agent_port(L))
+        if pid:
+            _lp_kill(pid)
+        _lp_log("stop", target, "OK", "pid=%s" % pid)
+        return {"ok": True, "target": target, "stopped": [pid] if pid else []}
     if target.startswith("chrome:"):
         L = target.split(":", 1)[1]
-        pids = _lp_chrome_pids(L)
-        for p in pids:
-            _lp_kill(p)
-        return {"ok": True, "target": target, "stopped": pids}
+        pid = _lp_pid_by_port(_lp_cdp_port(L))
+        if pid:
+            _lp_kill(pid)
+        _lp_log("stop", target, "OK", "pid=%s" % pid)
+        return {"ok": True, "target": target, "stopped": [pid] if pid else []}
     if target == "doh":
-        pids = _lp_pids_for("doh_proxy")
-        for p in pids:
-            _lp_kill(p)
-        return {"ok": True, "target": target, "stopped": pids}
-    if target == "mailbot":
-        pids = _lp_pids_for("mail_bot")
-        for p in pids:
-            _lp_kill(p)
-        return {"ok": True, "target": target, "stopped": pids}
-    if target == "rebirth":
-        pids = _lp_pids_for("la_watchdog")
-        for p in pids:
-            _lp_kill(p)
-        return {"ok": True, "target": target, "stopped": pids}
+        pid = _lp_pid_by_port(9999)
+        if pid:
+            _lp_kill(pid)
+        _lp_log("stop", target, "OK", "pid=%s" % pid)
+        return {"ok": True, "target": target, "stopped": [pid] if pid else []}
+    if target in ("mailbot", "rebirth"):
+        sp = _lp_spawned_load()
+        pid = sp.get(target)
+        if pid and _lp_pid_alive(pid):
+            _lp_kill(pid)
+        sp.pop(target, None)
+        _lp_spawned_save(sp)
+        _lp_log("stop", target, "OK", "pid=%s" % pid)
+        return {"ok": True, "target": target, "stopped": [pid] if pid else []}
     if target == "lada":
         return {"ok": False, "target": target, "error": "lada info only"}
     return {"ok": False, "target": target, "error": "unknown target"}
 
 
+def _lp_stop_stray_pythons():
+    """Погасить pythonw/python ТОЛЬКО проекта (ROOT в cmdline), кроме self."""
+    me = os.getpid()
+    killed = []
+    marker = str(ROOT).lower()
+    try:
+        ps = ("Get-CimInstance Win32_Process | "
+              "Where-Object { ($_.Name -eq 'pythonw.exe' -or $_.Name -eq 'python.exe') } | "
+              "ForEach-Object { $_.ProcessId.ToString() + '|' + $_.CommandLine }")
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", ps],
+                           capture_output=True, text=True, timeout=20,
+                           encoding="utf-8", errors="replace", creationflags=_no_window_flags())
+        for line in (r.stdout or "").splitlines():
+            parts = line.split("|", 1)
+            if len(parts) == 2 and parts[0].strip().isdigit():
+                pid = int(parts[0].strip())
+                cl = (parts[1] or "").lower()
+                if pid != me and marker in cl:
+                    _lp_kill(pid)
+                    killed.append(pid)
+    except Exception:
+        pass
+    return killed
+
+
+def _lp_target_port(target):
+    if target.startswith("agent:"):
+        return _lp_agent_port(target.split(":", 1)[1])
+    if target.startswith("chrome:"):
+        return _lp_cdp_port(target.split(":", 1)[1])
+    if target == "doh":
+        return 9999
+    return None
+
+
+def _lp_wait_free(port, timeout=10):
+    """Ждём освобождения порта (taskkill асинхронный)."""
+    if not port:
+        time.sleep(1.0)
+        return True
+    t0 = time.time()
+    while time.time() - t0 < timeout:
+        _lp_ports_cache["ts"] = 0  # сброс кэша - читаем свежий netstat
+        if not _lp_pid_by_port(port):
+            return True
+        time.sleep(0.4)
+    return False
+
+
 def lp_restart(target):
     if target == "all":
         lp_stop("all")
-        time.sleep(0.8)
+        time.sleep(2.0)
         return lp_boot("all")
     if target == "server":
-        return {"ok": False, "target": target, "error": "server restart is not allowed (pilot)"}
+        return {"ok": False, "target": target, "error": "server restart not allowed (pilot)"}
     lp_stop(target)
-    time.sleep(0.5)
+    _lp_wait_free(_lp_target_port(target))
     return lp_boot(target)
 
 
@@ -1424,6 +1545,21 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(raw.decode("utf-8")) if raw else {}
         except Exception:
             data = {}
+        # --- REQLOG (диагностика 22.10): кто шлёт boot/stop/restart ---
+        try:
+            _rl = CHAT_DIR / "api_requests.log"
+            _who = self.client_address[0] if self.client_address else "?"
+            _ua = (self.headers.get("User-Agent") or "")[:60]
+            _ref = (self.headers.get("Referer") or "")[:80]
+            _tgt = (data.get("target") if isinstance(data, dict) else "") or ""
+            _frm = (data.get("from") if isinstance(data, dict) else "") or ""
+            _line = "[%s] %s %s target=%r from=%r ua=%r ref=%r\n" % (
+                time.strftime("%H:%M:%S"), _who, self.path, _tgt, _frm, _ua, _ref)
+            with _io.open(str(_rl), "a", encoding="utf-8") as _f:
+                _f.write(_line)
+        except Exception:
+            pass
+        # --- /REQLOG ---
 
         if self.path == "/api/localai/query":
             self._handle_localai_query(data)

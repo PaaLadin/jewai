@@ -5,7 +5,7 @@ const POLL_MS = 2000;
 const STABLE_MS = 1200;
 const COALESCE_MS = 2500;
 const MIN_GAP_MS = 5000;
-const VERSION = "1.1.1";
+const VERSION = "1.1.2";
 
 const H = "#".repeat(3);
 const MB_RE = H + "\\s*BEGIN\\s*" + H;

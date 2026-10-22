@@ -5,7 +5,7 @@ const POLL_MS = 2000;
 const STABLE_MS = 1200;
 const COALESCE_MS = 2500;
 const MIN_GAP_MS = 5000;
-const VERSION = "1.0.0";
+const VERSION = "1.1.1";
 
 const H = "#".repeat(3);
 const MB_RE = H + "\\s*BEGIN\\s*" + H;
@@ -19,6 +19,17 @@ let lastSendAt = 0;
 let lastInsertedText = "";
 const recentlySentIds = new Set();
 const RECENT_LIMIT = 200;
+const SCAN_LAST_MSGS = 3;  // только последние ответы
+// персист recentlySentIds (переживает reload)
+const STORE_KEY = "recentlySentIds";
+function _persistRecent() {
+  try { chrome.storage.local.set({ [STORE_KEY]: Array.from(recentlySentIds).slice(-RECENT_LIMIT) }); } catch (e) {}
+}
+try { chrome.storage.local.get({ [STORE_KEY]: [] }, (d) => {
+  const arr = (d && d[STORE_KEY]) || [];
+  for (const x of arr) recentlySentIds.add(x);
+  console.log("[ef] restored recentlySentIds:", arr.length);
+}); } catch (e) {}
 
 console.log("[qwen-bridge] content v" + VERSION + " loaded");
 
@@ -35,6 +46,7 @@ function addRecent(id) {
   if (recentlySentIds.size > RECENT_LIMIT) {
     recentlySentIds.delete(recentlySentIds.values().next().value);
   }
+  _persistRecent();
 }
 
 function isStable() {
@@ -81,11 +93,27 @@ function parseBlocks(text) {
 function collectActions() {
   const out = [], seen = new Set();
   const add = (a) => { if (a && !seen.has(a.id)) { seen.add(a.id); out.push(a); } };
-  for (const c of document.querySelectorAll("pre, code")) {
-    // Qwen: используем innerText (textContent сливает строки)
-    const txt = normalizePre(c.innerText || "");
-    if (!txt.includes(H)) continue;
-    for (const a of parseBlocks(txt)) add(a);
+  // 1) склейка зоны ответа модели (в DOM-порядке) - блок может быть раздроблен
+  //    на несколько pre подряд, ни один pre не содержит его целиком.
+  const zones = document.querySelectorAll(
+    ".response-message-content, .custom-qwen-markdown, .qwen-markdown, "
+    + "[class*=response-message], [class*=markdown]");
+  // SCAN_LAST_MSGS: только последние ответы (старые блоки не всплывают)
+  const _n = zones.length;
+  let glued = "";
+  for (let _i = Math.max(0, _n - SCAN_LAST_MSGS); _i < _n; _i++) {
+    glued += "\n" + (zones[_i].innerText || "");
+  }
+  if (glued.includes(H)) {
+    for (const a of parseBlocks(normalizePre(glued))) add(a);
+  }
+  // 2) fallback: по отдельным pre/code (блок целиком в одном pre)
+  if (!out.length) {
+    for (const c of document.querySelectorAll("pre, code")) {
+      const txt = normalizePre(c.innerText || "");
+      if (!txt.includes(H)) continue;
+      for (const a of parseBlocks(txt)) add(a);
+    }
   }
   return out;
 }

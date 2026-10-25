@@ -158,7 +158,7 @@ def run(ch, dry=True):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--channel", required=True, choices=["A","B","C","D"])
+    ap.add_argument("--channel", required=True, choices=["A","B","C","D","E","F"])
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()
     sys.exit(run(a.channel, dry=a.dry_run))

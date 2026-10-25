@@ -124,7 +124,7 @@ def run_once():
 REBIRTH_TABLE = os.path.join(ROOT, "logs", "rebirth", "series_table.json")
 REBIRTH_STATE = os.path.join(ROOT, "logs", "rebirth", "reminders.jsonl")
 PANEL_SCRIPT = os.path.join(ROOT, "sandbox", "read_panel_state.py")
-CDP = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+CDP = {"A": 9222, "B": 9223, "C": 9224, "D": 9225, "E": 9226, "F": 9227}
 KICK_PY = os.path.join(ROOT, "sandbox", "bridge_kick2.py")
 
 

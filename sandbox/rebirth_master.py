@@ -74,7 +74,7 @@ def master(ch, live=False):
             _cfg = json.load(_cf)
         cdp = int(_cfg["channels"].get(ch, {}).get("cdp", 9222))
     except Exception:
-        cdp = {"A":9222,"B":9223,"C":9224,"D":9225}.get(ch, 9222)
+        cdp = {"A":9222,"B":9223,"C":9224,"D":9225,"E":9226,"F":9227}.get(ch, 9222)
 
     try:
         r = _spr_run = subprocess.run(
@@ -203,7 +203,7 @@ def master(ch, live=False):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--channel", required=True, choices=["A","B","C","D"])
+    ap.add_argument("--channel", required=True, choices=["A","B","C","D","E","F"])
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--live", action="store_true")
     a = ap.parse_args()

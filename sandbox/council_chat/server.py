@@ -93,8 +93,10 @@ except Exception:
         "B": {"name": "Борис",   "agent": 8767, "cdp": 9223, "color": "#33d6ff", "todo": "TODO_B.md"},
         "C": {"name": "Семён",   "agent": 8768, "cdp": 9224, "color": "#c573ff", "todo": "TODO_C.md"},
         "D": {"name": "Дима",    "agent": 8769, "cdp": 9225, "color": "#ffb000", "todo": "TODO_D.md"},
+        "E": {"name": "Grisha",   "agent": 8771, "cdp": 9226, "color": "#ff66cc", "todo": "TODO_E.md"},
+        "F": {"name": "Vasilisa", "agent": 8772, "cdp": 9227, "color": "#66ffff", "todo": "TODO_F.md"},
     }
-    CHANNEL_PREFIXES = {"A": "AAAA", "B": "BBAA", "C": "CCAA", "D": "DDAA"}
+    CHANNEL_PREFIXES = {"A": "AAAA", "B": "BBAA", "C": "CCAA", "D": "DDAA", "E": "QQAA", "F": "FFAA"}
 
 # Пороги risk-лампы — эмпирика (1A.5: 844, 2A: 1437).
 # Применяются ТОЛЬКО к каналу A.
@@ -282,7 +284,7 @@ def newest_mtime(paths, max_depth=3):
 
 
 def last_chat_activity_by_channel():
-    out = {"A": 0, "B": 0, "C": 0, "D": 0}
+    out = {k: 0 for k in CHANNELS}
     for m in load_messages():
         frm = m.get("from")
         if frm in out:
@@ -790,16 +792,30 @@ def flag_path(ch):
 
 
 def scan_projects():
-    """Сканирует ROADMAP.html в game/ и project/<name>/."""
+    '''Сканирует ROADMAP.html в game/ и project/<name>/.'''
+    import re
+    def get_html_meta(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                html = f.read()
+            title_m = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+            desc_m = re.search(r'<meta\s+name=["\']description["\']\s+content=["\'](.*?)["\']', html, re.IGNORECASE)
+            title = title_m.group(1).strip() if title_m else ""
+            desc = desc_m.group(1).strip() if desc_m else ""
+            return title, desc
+        except:
+            return "", ""
+
     out = []
     # 1. game/
     g = ROOT / "game" / "ROADMAP.html"
     if g.exists():
         st = g.stat()
+        t, d = get_html_meta(g)
         out.append({
             "name": "game",
-            "title": "Тредчанин",
-            "description": "Браузерный платформер, пилот Полесье",
+            "title": t or "Тредчанин",
+            "description": d or "Браузерный платформер, пилот Полесье",
             "url": "/roadmap/game",
             "mtime": st.st_mtime,
             "size": st.st_size,
@@ -813,10 +829,11 @@ def scan_projects():
             rm = d / "ROADMAP.html"
             if rm.exists():
                 st = rm.stat()
+                t, desc = get_html_meta(rm)
                 out.append({
                     "name": d.name,
-                    "title": d.name,
-                    "description": "",
+                    "title": t or d.name,
+                    "description": desc,
                     "url": "/roadmap/" + d.name,
                     "mtime": st.st_mtime,
                     "size": st.st_size,
@@ -824,7 +841,7 @@ def scan_projects():
     return out
 
 
-LOCALAI_SERVER = "http://127.0.0.1:8090"
+    LOCALAI_SERVER = "http://127.0.0.1:8090"
 LOCALAI_LLAMA = "http://127.0.0.1:8081"
 
 

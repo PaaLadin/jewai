@@ -23,7 +23,7 @@ import sys as _sys, os as _os
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from portable_root import find_root
 ROOT = find_root(__file__)
-CDP = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+CDP = {"A": 9222, "B": 9223, "C": 9224, "D": 9225, "E": 9226, "F": 9227}
 DS_HOME = "https://chat.deepseek.com/"
 ACTIVATION = os.path.join(ROOT, "emergency", "0_ACTIVATION.md")
 TABLE = os.path.join(ROOT, "logs", "rebirth", "series_table.json")
@@ -49,7 +49,7 @@ def fill_placeholders(ch, table):
     # для активации ПРЕЕМНИКА берём его диапазон (next_range), не текущий
     rng = info.get("next_range") or info["range"]
     ports = {"A": 8766, "B": 8767, "C": 8768, "D": 8769}
-    cdps = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+    cdps = {"A": 9222, "B": 9223, "C": 9224, "D": 9225, "E": 9226, "F": 9227}
     # HANDOVER_AT: за 150 id до конца серии
     try:
         handover_at = "%s%04d" % (info["prefix"], int(rng[1][4:]) - 150)
@@ -405,7 +405,7 @@ def run(ch, live=False, table=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--channel", required=True, choices=["A","B","C","D"])
+    ap.add_argument("--channel", required=True, choices=["A","B","C","D","E","F"])
     ap.add_argument("--dry-run", action="store_true", default=False)
     ap.add_argument("--live", action="store_true")
     a = ap.parse_args()

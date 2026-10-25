@@ -27,7 +27,7 @@ def _load_cdp():
             c = json.load(f)
         return {k: v["cdp"] for k, v in c["channels"].items()}
     except Exception:
-        return {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+        return {"A": 9222, "B": 9223, "C": 9224, "D": 9225, "E": 9226, "F": 9227}
 CDP = _load_cdp()
 TABLE = os.path.join(ROOT, "logs", "rebirth", "series_table.json")
 PANEL = os.path.join(ROOT, "sandbox", "read_panel_state.py")
@@ -55,7 +55,7 @@ def _probe(ch):
 
 def pick_neighbor(newcomer, table):
     """Перебор по кругу: A->B->C->D. Кандидат: 050 <= num < 800."""
-    order = ["A", "B", "C", "D"]
+    order = ["A", "B", "C", "D", "E", "F"]
     if newcomer in order:
         i = order.index(newcomer)
         order = order[i+1:] + order[:i]
@@ -93,7 +93,7 @@ def run(newcomer, new_url, dry=False):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--newcomer", required=True, choices=["A","B","C","D"])
+    ap.add_argument("--newcomer", required=True, choices=["A","B","C","D","E","F"])
     ap.add_argument("--new-url", default=None)
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args()

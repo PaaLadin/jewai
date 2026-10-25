@@ -1,8 +1,8 @@
-"""bridge_kick3.py — кик для SPA (qwen/alice/deepseek).
-Отличие от bridge_kick2: Enter не через Input.dispatchKeyEvent
-(SPA его не берёт), а клик по кнопке send или KeyboardEvent+click.
+"""bridge_kick3.py - kick for SPA (qwen/alice/deepseek).
+Fix 10D: Enter FIRST (Qwen SPA ignores .click() on send button),
+click is fallback only. Also skip readOnly/aria-hidden IME textarea.
 
-Usage: python sandbox/bridge_kick3.py --port 9226 --text "[A>E] ..."
+Usage: python sandbox/bridge_kick3.py --port 9226 --text "[D>E] ..."
 """
 import argparse, sys, os, time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -44,29 +44,36 @@ fill = ("(()=>{const ta=%s;const set=Object.getOwnPropertyDescriptor("
         "ta.focus();return ta.value.length})()") % (TA, args.text)
 n = s.eval(fill)
 print("filled:", n)
-time.sleep(0.5)
+time.sleep(0.4)
 
-# клик по кнопке send (qwen/alice) или KeyboardEvent Enter (deepseek)
-click_send = ("(()=>{const sels=['.message-input-right-button-send',"
-              "'.chat-prompt-send-button','button.send-button',"
-              "'[class*=send-button]:not([class*=disabled])'];"
-              "for(const q of sels){const b=document.querySelector(q);"
-              "if(b&&!b.className.match(/disabled/)){b.click();return 'click:'+q}}"
-              "return 'no-button'})()")
-r = s.eval(click_send)
-print("send:", r)
-time.sleep(0.5)
-if r == "no-button":
-    enter = ("(()=>{const ta=%s;for(const ty of ['keydown','keypress','keyup'])"
-             "ta.dispatchEvent(new KeyboardEvent(ty,{key:'Enter',code:'Enter',"
-             "keyCode:13,which:13,bubbles:true,cancelable:true}));"
-             "return 'enter'})()") % TA
-    print("fallback enter:", s.eval(enter))
-time.sleep(1.5)
-v = s.eval("(()=>{const ta=%s;return ta?ta.value.length:-1})()" % TA)
+def ta_len():
+    return s.eval("(()=>{const ta=%s;return ta?ta.value.length:-1})()" % TA)
+
+# 1) Enter FIRST (works on Qwen Vue SPA)
+enter = ("(()=>{const ta=%s;ta.focus();"
+         "for(const ty of ['keydown','keypress','keyup'])"
+         "ta.dispatchEvent(new KeyboardEvent(ty,{key:'Enter',code:'Enter',"
+         "keyCode:13,which:13,bubbles:true,cancelable:true}));"
+         "return 'enter'})()") % TA
+print("enter:", s.eval(enter))
+time.sleep(1.2)
+v = ta_len()
+
+# 2) Fallback: click send button
+if v != 0:
+    click_send = ("(()=>{const sels=['.message-input-right-button-send',"
+                  "'.chat-prompt-send-button','button.send-button',"
+                  "'[class*=send-button]:not([class*=disabled])'];"
+                  "for(const q of sels){const b=document.querySelector(q);"
+                  "if(b&&!String(b.className).match(/disabled/)){b.click();return 'click:'+q}}"
+                  "return 'no-button'})()")
+    print("send_click:", s.eval(click_send))
+    time.sleep(1.5)
+    v = ta_len()
+
 print("ta len after:", v)
 s.close()
 if v == 0:
     print("sent on port %d: %s" % (args.port, args.text[:100]))
 else:
-    print("WARN: textarea not empty")
+    print("WARN: textarea not empty"); sys.exit(5)

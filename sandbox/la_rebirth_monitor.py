@@ -126,6 +126,7 @@ REBIRTH_STATE = os.path.join(ROOT, "logs", "rebirth", "reminders.jsonl")
 PANEL_SCRIPT = os.path.join(ROOT, "sandbox", "read_panel_state.py")
 CDP = {"A": 9222, "B": 9223, "C": 9224, "D": 9225, "E": 9226, "F": 9227}
 KICK_PY = os.path.join(ROOT, "sandbox", "bridge_kick2.py")
+KICK3_PY = os.path.join(ROOT, "sandbox", "bridge_kick3.py")
 
 
 def _probe_lastid(ch):
@@ -188,7 +189,8 @@ def _log_reminder(ch, level, last_id, cmds):
 def _kick(ch, text):
     import subprocess
     try:
-        subprocess.run([sys.executable, KICK_PY, "--port", str(CDP[ch]),
+        kick_py = KICK3_PY if CDP.get(ch) in (9226, 9227) else KICK_PY
+        subprocess.run([sys.executable, kick_py, "--port", str(CDP[ch]),
                         "--text", text, "--wait-empty", "5"],
                        capture_output=True, text=True, timeout=30, cwd=ROOT)
     except Exception:
@@ -298,13 +300,21 @@ def _check_limit_and_ready(tab):
             _alog("chat-limit check %s ERR: %r" % (ch, e))
 
 
+
+def tab_channels():
+    try:
+        t = _load_series()
+        return list((t or {}).get("channels", {}).keys())
+    except Exception:
+        return ["A", "B", "C", "D"]
+
 def auto_rebirth_check():
     """Ловит флаг ready_<CH>.json -> запускает rebirth_master --live.
     Одно перерождение за раз (lock). Пишет лог."""
     if not _lock_free():
         _alog("lock busy, skip")
         return
-    for ch in ("A", "B", "C", "D"):
+    for ch in tab_channels():
         flag = os.path.join(ROOT, "logs", "rebirth", "ready_%s.json" % ch)
         if not os.path.exists(flag):
             continue

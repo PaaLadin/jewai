@@ -17,11 +17,10 @@ def _nw_flags():
         return 0
     return subprocess.CREATE_NO_WINDOW
 
-# --- Портирование (jewai): ROOT определяется от файла ---
-_HERE = Path(__file__).resolve().parent
-ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
-                                       "council_chat") else _HERE
-LOG = ROOT / "recovery_loop.log"
+ROOT = Path(r"C:\DeepSeek")
+RT = ROOT / "logs" / "runtime"
+RT.mkdir(parents=True, exist_ok=True)
+LOG = RT / "recovery_loop.log"
 
 
 def log(m):
@@ -33,21 +32,29 @@ def log(m):
 
 
 def panel_alive(port):
-    """read_panel_state -> есть ли текст панели."""
+    """read_panel_state -> есть ли текст панели И жив ли content.
+    Панель может быть жива при мёртвом content (no-answer) -> false.
+    Инцидент 2026-10-07: recovery не ловил content no-answer."""
     try:
         r = subprocess.run([sys.executable, str(ROOT/"sandbox"/"read_panel_state.py"), str(port)],
                            capture_output=True, text=True, timeout=25,
                            encoding="utf-8", errors="replace",
                            creationflags=_nw_flags())
         out = (r.stdout or "").strip()
-        return r.returncode == 0 and len(out) > 20
+        if r.returncode != 0 or len(out) <= 20:
+            return False
+        # content мёртв, хотя панель жива -> считаем канал нездоровым
+        low = out.lower()
+        if "no-answer" in low or "content no" in low or "content bad" in low:
+            return False
+        return True
     except Exception:
         return False
 
 
 def recover(port):
     try:
-        r = subprocess.run([sys.executable, str(ROOT/"sandbox"/"recover_chat.py"), str(port)],
+        r = subprocess.run([sys.executable, str(ROOT/"sandbox"/"recover_chat2.py"), str(port)],
                            capture_output=True, text=True, timeout=90,
                            encoding="utf-8", errors="replace",
                            creationflags=_nw_flags())

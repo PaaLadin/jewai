@@ -336,22 +336,32 @@ def run(ch, live=False, table=None):
                 print("    export_share rc=%d -> %s" % (r.returncode, out_md))
             except Exception as e:
                 print("    export_share ERR: %r" % e)
-        pg = step_new_chat(ctx, pg, dry=False)
-        fl_ok = step_first_line(pg, "%s %s" % (info["next_series"], info["name"]))
-        if not fl_ok:
-            log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")
-            with io.open(log, "a", encoding="utf-8") as f:
-                f.write(json.dumps({"ts": time.time(), "ch": ch,
-                                    "old_series": info["current_series"],
-                                    "new_series": info["next_series"],
-                                    "old_chat": info.get("chat_url", ""),
-                                    "new_url": "", "share": share_url or "",
-                                    "result": "FAIL: fill failed (no textarea)"},
-                                   ensure_ascii=False) + "\n")
-            print("    !! fill failed - abort before send, table NOT advanced")
-            return 6
-        step_attach(pg, [act, prompt], ctx=ctx)
-        new_url = step_send(pg, fill_text=("" + info["next_series"] + " " + info["name"]), old_url=info.get("chat_url", ""))
+        # Native path via rebirth_open.py (tested on B/C/D 2026-10-25).
+        # Playwright send inside rebirth_cdp is unreliable on SPA.
+        import subprocess as _spn
+        out_json = os.path.join(ROOT, "logs", "rebirth", "open_%s_tmp.json" % ch)
+        fill_text = "%s %s" % (info["next_series"], info["name"])
+        try:
+            _r = _spn.run([sys.executable,
+                           os.path.join(ROOT, "sandbox", "rebirth_open.py"),
+                           "--cdp", str(CDP[ch]),
+                           "--fill", fill_text,
+                           "--attach", act, prompt,
+                           "--out", out_json],
+                          capture_output=True, text=True, timeout=240, cwd=ROOT)
+            print("    rebirth_open rc=%d" % _r.returncode)
+            if _r.stdout:
+                print("    open out: %s" % _r.stdout.strip()[:200])
+        except Exception as _e:
+            print("    rebirth_open ERR: %r" % _e)
+            new_url = ""
+            _op = {}
+        else:
+            try:
+                _op = json.load(io.open(out_json, encoding="utf-8"))
+            except Exception:
+                _op = {}
+            new_url = _op.get("url") or ""
         log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")
         if not new_url:
             with io.open(log, "a", encoding="utf-8") as f:
@@ -360,18 +370,23 @@ def run(ch, live=False, table=None):
                                     "new_series": info["next_series"],
                                     "old_chat": info.get("chat_url", ""),
                                     "new_url": "", "share": share_url or "",
-                                    "result": "FAIL: no new url (chat not created)"},
+                                    "result": "FAIL: rebirth_open no url"},
                                    ensure_ascii=False) + "\n")
-            print("    !! new_url empty - chat NOT created, table NOT advanced")
+            print("    !! rebirth_open no url - chat NOT created, table NOT advanced")
             return 6
+        try:
+            os.remove(out_json)
+        except Exception:
+            pass
         with io.open(log, "a", encoding="utf-8") as f:
             f.write(json.dumps({"ts": time.time(), "ch": ch,
                                 "old_series": info["current_series"],
                                 "new_series": info["next_series"],
                                 "old_chat": info.get("chat_url", ""),
-                                "new_url": new_url or "",
+                                "new_url": new_url,
                                 "share": share_url or "",
-                                "result": "cycle done"}, ensure_ascii=False) + "\n")
+                                "result": "cycle done (native)"},
+                               ensure_ascii=False) + "\n")
         print("    rebirth_log written")
         try:
             import subprocess as _sp2

@@ -4,6 +4,11 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.15] - 2026-10-25
+
+### Changed
+- **sandbox/rebirth_cdp.py** - live branch delegates new-chat+attach+send to rebirth_open.py (tested B/C/D). Playwright send inside rebirth_cdp was unreliable on SPA (silent fail, no new url). Share+export_share still via Playwright (works).
+
 ## [2.3.14] - 2026-10-25
 
 ### Fixed

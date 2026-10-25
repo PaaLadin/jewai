@@ -31,7 +31,7 @@ def _load_cdp():
 CDP = _load_cdp()
 TABLE = os.path.join(ROOT, "logs", "rebirth", "series_table.json")
 PANEL = os.path.join(ROOT, "sandbox", "read_panel_state.py")
-KICK = os.path.join(ROOT, "sandbox", "bridge_kick.py")
+KICK = os.path.join(ROOT, "sandbox", "bridge_kick2.py")
 
 ONBOARD_MSG = (
     "[SYS] Новый агент {new} в чате {url}.\n"
@@ -78,7 +78,7 @@ def run(newcomer, new_url, dry=False):
         print("нет кандидата-соседа (все либо <050, либо >=800)")
         return 2
     print("сосед: %s (lastId %s%04d)" % (ch, pref, num))
-    msg = ONBOARD_MSG.format(new=table["channels"][newcomer]["next_series"],
+    msg = ONBOARD_MSG.format(new=table["channels"][newcomer]["current_series"],
                              url=new_url or "(url неизвестен)")
     if dry:
         print("--- dry ---")

@@ -178,13 +178,18 @@ def step_attach(pg, files, dry=True, ctx=None):
                 print("    %s: %s" % ("attached(retry)" if name in body else "!! STILL MISSING", name))
 
 
-def step_send(pg, dry=True):
-    """Enter posle fill+attach. Ustoychivo k React-peresozdaniyu textarea:
-    re-query textarea kazhduyu popytku, pg.keyboard.press, poll URL."""
+def step_send(pg, dry=True, fill_text="", old_url=""):
+    """Enter posle fill+attach. Success criterion: our message appears in chat
+    DOM (SPA creates new chat on goto, so URL may already be new before Enter)."""
     print("  [4] otpravit (Enter)")
     if dry:
         return
-    url_before = pg.url
+    ta0 = ""
+    try:
+        ta0 = pg.evaluate("() => (document.querySelector('textarea')||{}).value || ''") or ""
+    except Exception:
+        pass
+    print("    pre-send textarea len=%d, url=%s" % (len(ta0), pg.url))
     ok = False
     for attempt in range(3):
         try:
@@ -202,25 +207,23 @@ def step_send(pg, dry=True):
             pg.keyboard.press("Enter")
         except Exception:
             pass
-        for _ in range(15):
+        for _ in range(12):
             time.sleep(1)
-            if pg.url != url_before and "/a/chat/s/" in pg.url:
+            try:
+                body = pg.evaluate("() => document.body ? document.body.innerText : ''") or ""
+                ta_v = pg.evaluate("() => (document.querySelector('textarea')||{}).value || ''") or ""
+            except Exception:
+                continue
+            sent = (not ta_v.strip()) and (fill_text[:8] in body)
+            if sent and "/a/chat/s/" in pg.url:
                 ok = True
                 break
         if ok:
             break
-        print("    send attempt %d: url not changed, retry" % (attempt + 1))
+        print("    send attempt %d: not confirmed, retry" % (attempt + 1))
         time.sleep(2)
     new_url = pg.url if ok else ""
-    print("    new chat url: %s" % (new_url or "(not changed)"))
-    try:
-        val = pg.evaluate("() => (document.querySelector('textarea')||{}).value || ''")
-        if val.strip():
-            print("    !! textarea ne opustela, vozmozhen fail")
-        else:
-            print("    textarea empty - otpravleno")
-    except Exception:
-        pass
+    print("    send ok=%s url=%s" % (ok, new_url or "(none)"))
     return new_url or None
 
 
@@ -348,7 +351,7 @@ def run(ch, live=False, table=None):
             print("    !! fill failed - abort before send, table NOT advanced")
             return 6
         step_attach(pg, [act, prompt], ctx=ctx)
-        new_url = step_send(pg)
+        new_url = step_send(pg, fill_text=("" + info["next_series"] + " " + info["name"]), old_url=info.get("chat_url", ""))
         log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")
         if not new_url:
             with io.open(log, "a", encoding="utf-8") as f:

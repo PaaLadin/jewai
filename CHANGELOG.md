@@ -4,6 +4,18 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.14] - 2026-10-25
+
+### Fixed
+- **rebirth_cdp.step_send**: success by DOM (our text in chat body + textarea empty), not URL change. SPA creates new chat on goto -> url comparison was false-negative, send failed.
+- **rebirth_onboard**: uses current_series (table already incremented) -> said 11D instead of 10D.
+
+## [2.3.14] - 2026-10-25
+
+### Fixed
+- **rebirth_cdp.step_send**: success by DOM (our text in chat body + textarea empty), not URL change. SPA creates new chat on goto -> url comparison was false-negative, send failed.
+- **rebirth_onboard**: uses current_series (table already incremented) -> said 11D instead of 10D.
+
 ## [2.3.13] - 2026-10-25
 
 **Rebirth fill guard.**

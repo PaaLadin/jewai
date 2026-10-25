@@ -103,19 +103,33 @@ def step_new_chat(ctx, pg, dry=True):
 
 
 def step_first_line(pg, line, dry=True):
-    """Заполняет textarea (БЕЗ отправки). Отправка — step_send."""
-    print("  [2] первая строка (fill): %r" % line)
+    """Fill textarea (no send). Wait for React hydration, verify value."""
+    print("  [2] first line (fill): %r" % line)
     if dry:
-        return
-    ta = pg.query_selector("textarea")
-    if not ta:
-        print("    !! textarea not found"); return
-    ta.click()
-    ta.fill(line)
-    time.sleep(1.0)
-    # verify
-    val = pg.evaluate("() => (document.querySelector('textarea')||{}).value || ''")
-    print("    verify value=%r" % val[:40])
+        return True
+    try:
+        pg.wait_for_selector("textarea", timeout=30000)
+    except Exception as e:
+        print("    !! textarea wait ERR: %r" % e)
+        return False
+    for attempt in range(3):
+        try:
+            ta = pg.query_selector("textarea")
+            if not ta:
+                print("    !! textarea not found (try %d)" % (attempt + 1))
+                time.sleep(2); continue
+            ta.click()
+            ta.fill(line)
+            time.sleep(1.0)
+            val = pg.evaluate("() => (document.querySelector('textarea')||{}).value || ''")
+            if line[:5] in (val or ""):
+                print("    verify OK value=%r" % val[:40])
+                return True
+            print("    verify FAIL value=%r (try %d)" % (val[:40], attempt + 1))
+        except Exception as e:
+            print("    fill ERR: %r" % e)
+        time.sleep(2)
+    return False
 
 
 def _attach_native(ctx, pg, files):
@@ -320,7 +334,19 @@ def run(ch, live=False, table=None):
             except Exception as e:
                 print("    export_share ERR: %r" % e)
         pg = step_new_chat(ctx, pg, dry=False)
-        step_first_line(pg, "%s %s" % (info["next_series"], info["name"]))
+        fl_ok = step_first_line(pg, "%s %s" % (info["next_series"], info["name"]))
+        if not fl_ok:
+            log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")
+            with io.open(log, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"ts": time.time(), "ch": ch,
+                                    "old_series": info["current_series"],
+                                    "new_series": info["next_series"],
+                                    "old_chat": info.get("chat_url", ""),
+                                    "new_url": "", "share": share_url or "",
+                                    "result": "FAIL: fill failed (no textarea)"},
+                                   ensure_ascii=False) + "\n")
+            print("    !! fill failed - abort before send, table NOT advanced")
+            return 6
         step_attach(pg, [act, prompt], ctx=ctx)
         new_url = step_send(pg)
         log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")

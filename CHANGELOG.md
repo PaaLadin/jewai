@@ -4,6 +4,12 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.16] - 2026-10-25
+
+### Changed
+- CDP maps and channel choices extended A-D -> A-F (E=9226, F=9227) in rebirth scripts.
+- **server.py** fallback CHANNELS adds E/F; prefixes E=QQAA F=FFAA; last_chat_activity dynamic.
+
 ## [2.3.15] - 2026-10-25
 
 ### Changed

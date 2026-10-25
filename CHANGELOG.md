@@ -4,6 +4,15 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.17] - 2026-10-26
+
+**Self-healing hardening.**
+
+### Fixed
+- **recovery_loop.py** - calls recover_chat2.py (native CDP) instead of recover_chat.py (Playwright hangs on SPA).
+- **la_rebirth_monitor.py** - kick3 for E/F SPA ports 9226/9227; dynamic channels from series_table (not A-D hardcode).
+- **bridge_kick3.py** (by 10D) - Enter first, click fallback (Qwen SPA ignores click on send); skip readOnly/aria-hidden IME textarea; exit 5 if textarea not empty.
+
 ## [2.3.16] - 2026-10-25
 
 ### Changed

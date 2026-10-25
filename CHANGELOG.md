@@ -4,6 +4,17 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.12] - 2026-10-25
+
+**Rebirth step_send fix + new-chat guard.**
+
+### Fixed
+- **sandbox/rebirth_cdp.py** - step_send: React re-creates textarea after 1st Enter -> ElementHandle.press failed (Element not attached to DOM). Now re-query textarea each attempt + pg.keyboard.press + poll URL. No more silent fail.
+- **sandbox/rebirth_cdp.py** - run(): if new_url empty -> result=FAIL, return 6, series_table NOT advanced (was: advanced anyway, caused wrong onboarding series 11B/5C/10D).
+
+### Added
+- **sandbox/rebirth_open.py** - standalone stable new-chat opener (wait_for_selector textarea, verify fill, keyboard.press, poll URL). Used to recover B/C/D rebirths on 2026-10-25.
+
 ## [2.2.0] - 2026-10-14 (unreleased)
 
 **Native CDP transport, rebirth hardening, multimodel E/F.**

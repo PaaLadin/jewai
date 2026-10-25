@@ -165,40 +165,49 @@ def step_attach(pg, files, dry=True, ctx=None):
 
 
 def step_send(pg, dry=True):
-    """Enter после заполнения + прикрепления. Ждём, что URL сменился."""
-    print("  [4] отправить (Enter)")
+    """Enter posle fill+attach. Ustoychivo k React-peresozdaniyu textarea:
+    re-query textarea kazhduyu popytku, pg.keyboard.press, poll URL."""
+    print("  [4] otpravit (Enter)")
     if dry:
         return
     url_before = pg.url
-    new_url = url_before
+    ok = False
     for attempt in range(3):
-        ta = pg.query_selector("textarea")
-        if not ta:
-            print("    !! textarea not found"); return None
-        ta.click()
-        ta.press("Enter")
-        time.sleep(3.0)
-        ta.press("Enter")  # double-enter-canon
-        changed = False
-        for _ in range(8):
+        try:
+            ta = pg.query_selector("textarea")
+            if ta:
+                ta.click()
+        except Exception:
+            pass
+        try:
+            pg.keyboard.press("Enter")
+        except Exception as e:
+            print("    press1 ERR: %r" % e)
+        time.sleep(2.0)
+        try:
+            pg.keyboard.press("Enter")
+        except Exception:
+            pass
+        for _ in range(15):
             time.sleep(1)
             if pg.url != url_before and "/a/chat/s/" in pg.url:
-                changed = True
+                ok = True
                 break
-        if changed:
+        if ok:
             break
         print("    send attempt %d: url not changed, retry" % (attempt + 1))
         time.sleep(2)
-    new_url = pg.url
-    print("    new chat url: %s" % new_url)
-    # verify: textarea опустела (сообщение ушло)
-    val = pg.evaluate("() => (document.querySelector('textarea')||{}).value || ''")
-    if val.strip():
-        print("    !! textarea не опустела, возможен fail")
-    else:
-        print("    textarea empty — отправлено")
-    # даже если URL не сменился, вернём текущий (таблица обновится)
-    return new_url or url_before
+    new_url = pg.url if ok else ""
+    print("    new chat url: %s" % (new_url or "(not changed)"))
+    try:
+        val = pg.evaluate("() => (document.querySelector('textarea')||{}).value || ''")
+        if val.strip():
+            print("    !! textarea ne opustela, vozmozhen fail")
+        else:
+            print("    textarea empty - otpravleno")
+    except Exception:
+        pass
+    return new_url or None
 
 
 def step_share(pg, dry=True):
@@ -314,8 +323,18 @@ def run(ch, live=False, table=None):
         step_first_line(pg, "%s %s" % (info["next_series"], info["name"]))
         step_attach(pg, [act, prompt], ctx=ctx)
         new_url = step_send(pg)
-        # запись в лог + обновление таблицы — ВСЕГДА (не зависеть от new_url)
         log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")
+        if not new_url:
+            with io.open(log, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"ts": time.time(), "ch": ch,
+                                    "old_series": info["current_series"],
+                                    "new_series": info["next_series"],
+                                    "old_chat": info.get("chat_url", ""),
+                                    "new_url": "", "share": share_url or "",
+                                    "result": "FAIL: no new url (chat not created)"},
+                                   ensure_ascii=False) + "\n")
+            print("    !! new_url empty - chat NOT created, table NOT advanced")
+            return 6
         with io.open(log, "a", encoding="utf-8") as f:
             f.write(json.dumps({"ts": time.time(), "ch": ch,
                                 "old_series": info["current_series"],
@@ -324,7 +343,7 @@ def run(ch, live=False, table=None):
                                 "new_url": new_url or "",
                                 "share": share_url or "",
                                 "result": "cycle done"}, ensure_ascii=False) + "\n")
-        print("    rebirth_log записан")
+        print("    rebirth_log written")
         try:
             import subprocess as _sp2
             _sp2.run([sys.executable,
@@ -333,10 +352,10 @@ def run(ch, live=False, table=None):
                       "--new-url", new_url or "",
                       "--share", share_url or ""],
                      capture_output=True, text=True, timeout=30, cwd=ROOT)
-            print("    series_table обновлена")
+            print("    series_table advanced")
         except Exception as e:
             print("    series_table ERR: %r" % e)
-        print("РЕЗУЛЬТАТ: цикл выполнен.")
+        print("RESULT: cycle done, new chat %s" % new_url)
         return 0
 
 

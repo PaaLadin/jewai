@@ -4,6 +4,14 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.13] - 2026-10-25
+
+**Rebirth fill guard.**
+
+### Fixed
+- **sandbox/rebirth_cdp.py** - step_first_line: wait_for_selector(textarea, 30s) + retry 3x + verify fill. After goto React hydration not ready -> fill failed silently -> send to empty textarea -> tab stuck on main page.
+- **sandbox/rebirth_cdp.py** - run(): if fill fails -> FAIL rc=6, series_table NOT advanced.
+
 ## [2.3.12] - 2026-10-25
 
 **Rebirth step_send fix + new-chat guard.**

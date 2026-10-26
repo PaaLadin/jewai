@@ -4,6 +4,11 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.18] - 2026-10-26
+
+### Fixed
+- **autorestart.py** - after successful restart _update_state() writes agent:<CH>=pid to runtime/lp_spawned.json (PORT_CH map). State was desynced: panel showed old pid, kill by state missed. Found in self-healing test (D agent killed, revived, state stale).
+
 ## [2.3.17] - 2026-10-26
 
 **Self-healing hardening.**

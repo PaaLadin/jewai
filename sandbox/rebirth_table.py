@@ -60,7 +60,7 @@ def update(ch, share_url=None, new_url=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--channel", required=True, choices=["A", "B", "C", "D", "E", "F"])
+    ap.add_argument("--channel", required=True, choices=["A","B","C","D","E","F"])
     ap.add_argument("--share", default="")
     ap.add_argument("--new-url", default="")
     x = ap.parse_args()

@@ -134,3 +134,22 @@
 }
 .settings-body select, .settings-body input { font-size: 11px; }
 .settings-controls { display: flex; gap: 8px; margin-top: 20px; }
+
+/* --- Трекер: строки композиций с управлением --- */
+#tracker-track-settings { width: 90%; max-width: 900px; margin: 8px 0; }
+.trk-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 6px 8px; border: 2px solid #1a2450; background: #0a1228;
+  margin-bottom: 4px; font-size: 9px;
+}
+.trk-row .trk-name { flex: 1; min-width: 160px; color: #e6f0ff; }
+.trk-row .trk-style { color: #8ca8e0; font-size: 8px; }
+.trk-row select, .trk-row input[type=number] {
+  font-size: 9px; padding: 2px 4px; background: #0c1638; color: #e6f0ff;
+  border: 1px solid #2a3a6a;
+}
+.trk-row button { font-size: 8px; padding: 3px 8px; }
+.trk-row input[type=checkbox] { accent-color: #2ecc71; }
+.trk-row .trk-save { background: #1a2450; }
+.trk-row .trk-save.saved { background: #2ecc71; color: #000; }
+.trk-planet { font-size: 8px; color: #f8d860; }

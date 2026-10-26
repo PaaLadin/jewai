@@ -25,30 +25,8 @@ const Tracker = (() => {
       });
       box.appendChild(el);
     }
-    // 30 авторских треков (только если стиль разблокирован).
-    const tracks = (typeof AuthorTracks !== "undefined") ? AuthorTracks.list() : [];
-    if (tracks.length) {
-      const hdr = document.createElement("div");
-      hdr.className = "tracker-hdr";
-      hdr.textContent = "Авторские треки";
-      box.appendChild(hdr);
-      for (const tid of tracks) {
-        const tr = AuthorTracks.get(tid);
-        // Разблокировка: стиль планеты.
-        const styleName = (tr.style || "").toLowerCase();
-        const planet = Progress.PLANETS.find(p => p.style === styleName);
-        const unlocked = planet ? Progress.isUnlocked(planet.id) : true;
-        const el = document.createElement("div");
-        el.className = "tracker-item" + (unlocked ? "" : " locked");
-        el.innerHTML = '<span class="ti-name">' + (unlocked ? "" : "🔒 ") +
-          (tr.about || tid) + '</span>';
-        el.addEventListener("click", () => {
-          if (!unlocked) return;
-          playTrack(tid);
-        });
-        box.appendChild(el);
-      }
-    }
+    // Авторские треки выводятся в отдельном блоке #tracker-track-settings
+    // (TrackerSettings.fillRows) — с BPM, галочкой и save.
   }
 
   function playStyle(styleName) {
@@ -175,6 +153,7 @@ const Tracker = (() => {
     fillList();
     updateSeedButtons();
     renderSeeds();
+    if (typeof TrackerSettings !== "undefined") TrackerSettings.fillRows();
   }
   function hide() {
     stop();

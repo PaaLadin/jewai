@@ -841,7 +841,7 @@ def scan_projects():
     return out
 
 
-    LOCALAI_SERVER = "http://127.0.0.1:8090"
+LOCALAI_SERVER = "http://127.0.0.1:8090"
 LOCALAI_LLAMA = "http://127.0.0.1:8081"
 
 

@@ -72,7 +72,7 @@ def _cmds(ch):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--channel", required=True, choices=["A", "B", "C", "D", "E", "F"])
+    ap.add_argument("--channel", required=True, choices=["A","B","C","D","E","F"])
     ap.add_argument("--force-note", default="")
     ap.add_argument("--check-only", action="store_true")
     a = ap.parse_args()

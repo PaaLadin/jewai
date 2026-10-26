@@ -380,13 +380,18 @@ const AudioEngine = (() => {
     }
     if (isOn("pad")) {
       const v = patForStep("pad", stepInfo);
+      // pad = АККОРД (массив нот) или одиночная нота. Без эвристики.
       if (v != null && v !== 0) {
-        // трезвучие: мажор или минор — эвристика по прогрессии.
-        const pc = v % 12;
-        const minorPCs = [9, 2, 4, 11];  // A, D, E, B — минорные в простых прогрессиях
-        let third = minorPCs.includes(pc) ? 3 : 4;
-        const triad = [v, v + third, v + 7];
-        playPad(time, triad, stepDur * 14, 0.22, synthFor("pad"));
+        let chord = Array.isArray(v) ? v.slice() : [v];
+        // Если одна нота — добавить квинту/терцию (консонанс).
+        if (chord.length === 1) {
+          const n0 = chord[0];
+          if (n0 + 7 <= 84) chord = [n0, n0 + 7];
+          else if (n0 - 7 >= 36) chord = [n0 - 7, n0];
+          else if (n0 + 4 <= 84) chord = [n0, n0 + 4];
+          else chord = [n0];
+        }
+        if (chord.length) playPad(time, chord, stepDur * 14, 0.22, synthFor("pad"));
       }
     }
     if (isOn("lead")) {

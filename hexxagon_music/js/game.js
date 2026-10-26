@@ -1539,20 +1539,43 @@ const Game = (() => {
       if (typeof AudioEngine !== "undefined") {
         let track = null;
         if (typeof AuthorTracks !== "undefined") {
-          const ids = AuthorTracks.forStyle(planet.style);
+          // 1. Приоритет: треки, отмеченные "в игре" для этого стиля.
+          let ids = [];
+          if (typeof TrackerSettings !== "undefined" && TrackerSettings.inGameTracks) {
+            const chosen = TrackerSettings.inGameTracks();
+            ids = chosen.filter(id => {
+              const tr = AuthorTracks.get(id);
+              return tr && tr.style === planet.style;
+            });
+          }
+          // 2. Иначе — все авторские этого стиля.
+          if (!ids.length) ids = AuthorTracks.forStyle(planet.style);
           if (ids.length) {
             const pick = ids[Math.floor(Math.random() * ids.length)];
             track = AuthorTracks.get(pick);
             window.__currentTrack = pick;
+            // Применить сохранённый BPM, если задан.
+            if (typeof TrackerSettings !== "undefined" && TrackerSettings.settingsFor) {
+              const cfg = TrackerSettings.settingsFor(pick);
+              if (cfg && cfg.bpm) track = Object.assign({}, track, { bpm: cfg.bpm });
+            }
           }
         }
         if (!track && typeof Styles !== "undefined") {
           track = Styles.get(planet.style);
         }
         if (track) AudioEngine.setStyle(track);
-        const ba = document.getElementById("btn-audio");
-        if (ba && !AudioEngine.isRunning()) ba.click();
-        AudioEngine.start();
+        // НЕ дёргаем btn-audio: его async-обработчик через
+        // applyMusicSource() перезаписывает трек на Styles (синтез).
+        AudioEngine.resume();
+        for (const ch of AudioEngine.CHANNELS) {
+          AudioEngine.setChannel(ch, { on: ch !== "pad", density: 1.0 });
+        }
+        if (AudioEngine.syncGains) AudioEngine.syncGains();
+        if (!AudioEngine.isRunning()) AudioEngine.start();
+        // Обновить подпись стиля.
+        const sn = document.getElementById("style-name");
+        if (sn && window.__currentTrack) sn.textContent = window.__currentTrack;
       }
     },
     startQuick: function() {

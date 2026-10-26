@@ -1,3 +1,19 @@
+
+## [2.3.25] - 2026-10-26
+
+### Added
+- hexxagon_music/js/tracker_settings.js — BPM-настройки трекера (save в localStorage), feature 8D/9D.
+- emergency/PROMPT_14A.md, emergency/PROMPT_2E.md.
+- rag/procedures/rebirth_scope.md — перерождение только A-D, E/F без rebirth (правило оператора).
+
+### Changed
+- rebirth_master/cdp/ready/table/onboard: choices расширены с A-D на A-F.
+- hexxagon_music: обновления трекера/audio/menu (v6, 8D/9D).
+- server.py: LOCALAI_SERVER отступ (модульный уровень).
+
+### Fixed
+- panel-stuck скрытые команды — не потеря.
+
 # Changelog
 
 Формат: [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/).

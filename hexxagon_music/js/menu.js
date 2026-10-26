@@ -8,19 +8,22 @@ const Menu = (() => {
                        if (e) e.classList.add("hidden"); });
     const m = document.getElementById("menu-screen");
     if (m) m.classList.remove("hidden");
-    playMenuTheme();
+    // Тема меню — только если звук уже разбужен и не идёт лор/партия.
+    if (AudioEngine.isRunning && AudioEngine.isRunning()) playMenuTheme();
   }
 
   // Тема меню — простая мелодичная, играет в меню (если звук уже разбужен).
   let menuPlaying = false;
   function playMenuTheme() {
     if (typeof AudioEngine === "undefined" || typeof AuthorTracks === "undefined") return;
-    if (!AudioEngine.isReady || !AudioEngine.isReady()) return;  // нет жеста — молчим
+    if (!AudioEngine.isReady || !AudioEngine.isReady()) return;
     const th = AuthorTracks.get("theme_Menu");
     if (!th) return;
     AudioEngine.setStyle(th);
+    // Все каналы, кроме pad (убран). Плотность выше.
     for (const ch of AudioEngine.CHANNELS) {
-      AudioEngine.setChannel(ch, { on: ch !== "arp", density: 1.0 });
+      const on = (ch !== "pad");
+      AudioEngine.setChannel(ch, { on: on, density: 1.0 });
     }
     if (AudioEngine.syncGains) AudioEngine.syncGains();
     if (!AudioEngine.isRunning()) AudioEngine.start();
@@ -56,17 +59,19 @@ const Menu = (() => {
     if (!th) return;
     AudioEngine.resume();
     AudioEngine.setStyle(th);
-    // Все 7 включены.
-    for (const ch of AudioEngine.CHANNELS) {
-      AudioEngine.setChannel(ch, { on: true, density: 1.0 });
-    }
-    if (AudioEngine.syncGains) AudioEngine.syncGains();
-    if (!AudioEngine.isRunning()) AudioEngine.start();
+    const allOn = () => {
+      for (const ch of AudioEngine.CHANNELS) {
+        AudioEngine.setChannel(ch, { on: true, density: 1.0 });
+      }
+      if (AudioEngine.syncGains) AudioEngine.syncGains();
+      if (!AudioEngine.isRunning()) AudioEngine.start();
+    };
+    allOn();
+    setTimeout(allOn, 200);   // повтор после разблокировки ctx
     titleStarted = true;
   }
   // С 3-го слайда (idx=2) теряем по одному инструменту за шаг.
   function fadeInstrument(idx) {
-    if (!titleStarted) return;
     if (idx < 2) return;                 // первые 2 слайда - полный звук
     const losses = idx - 1;              // idx=2 -> 1 потеря ... idx=8 -> 7 (тишина)
     for (let i = 0; i < losses && i < FADE_ORDER.length; i++) {

@@ -1082,6 +1082,24 @@ def lp_status():
     return out
 
 
+def _kill_all_rebirth_monitors():
+    """Kill ALL la_rebirth_monitor processes (state pid may be stale, orphans survive)."""
+    try:
+        _r = subprocess.run(["wmic", "process", "where",
+                             "name='pythonw.exe' or name='python.exe'",
+                             "get", "ProcessId,CommandLine", "/format:csv"],
+                            capture_output=True, text=True, timeout=15)
+        for _line in (_r.stdout or "").splitlines():
+            if "la_rebirth_monitor" in _line:
+                _parts = _line.strip().split(",")
+                _pid = _parts[-1].strip()
+                if _pid.isdigit():
+                    subprocess.run(["taskkill", "/PID", _pid, "/F"],
+                                   capture_output=True, timeout=10)
+    except Exception:
+        pass
+
+
 def lp_boot(target):
     if target == "all":
         res = [lp_boot("doh")]
@@ -1147,9 +1165,10 @@ def lp_boot(target):
         _lp_log("boot", target, "OK" if pid else "ERR", "pid=%s" % pid)
         return {"ok": bool(pid), "target": target, "pid": pid}
     if target == "rebirth":
+        _kill_all_rebirth_monitors()
         sp = _lp_spawned_load()
-        if _lp_pid_alive(sp.get("rebirth")):
-            return {"ok": True, "target": target, "already": True}
+        sp.pop("rebirth", None)
+        _lp_spawned_save(sp)
         if not LP_WATCHDOG_SCRIPT.exists():
             return {"ok": False, "target": target, "error": "no script"}
         pid = _lp_spawn([_lp_pythonw(), str(LP_WATCHDOG_SCRIPT), "--loop", "1200",
@@ -1204,6 +1223,8 @@ def lp_stop(target):
             _lp_kill(pid)
         sp.pop(target, None)
         _lp_spawned_save(sp)
+        if target == "rebirth":
+            _kill_all_rebirth_monitors()
         _lp_log("stop", target, "OK", "pid=%s" % pid)
         return {"ok": True, "target": target, "stopped": [pid] if pid else []}
     if target == "lada":

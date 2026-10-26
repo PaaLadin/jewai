@@ -571,4 +571,10 @@ install.py ставил порт 8760 (новый дефолт), а расшир
   через background.
 - Chrome 136+ блокирует CDP на профиле по умолчанию — используются
   отдельные профили с `--user-data-dir`.
-- DNS-фильтр у провайдера — обход через DoH-прокси на 127.0.0.1:9999.
+- DNS-фильтр у провайдера — обход через DoH-прокси на 127.0.0.1:9999## [2.3.22] - 2026-10-26
+
+### Added
+- **sandbox/see_chat.py** - screenshot + innerText of any agent chat via CDP (see_chat.py --cdp 9224 --out see.png).
+- **rag/procedures/see_newborn.md** - controlling agent must SEE newborn window, not guess from logs. Linked from INDEX, behavior_rules §3.6, 0_ACTIVATION §7.5.
+
+.

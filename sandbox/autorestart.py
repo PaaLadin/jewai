@@ -17,33 +17,18 @@ except Exception:
 import sys, os, json, time, argparse, subprocess, urllib.request
 from pathlib import Path
 
-# --- Портирование (jewai): ROOT определяется от файла ---
-_HERE = Path(__file__).resolve().parent
-ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
-                                       "council_chat") else _HERE
+ROOT = Path(r"C:\DeepSeek")
 SVC_DIR = ROOT / "logs" / "svc"
 PATHS_CACHE = SVC_DIR / "agent_paths.json"
 PY = _sys.executable
 
-# порт -> путь agent.py (фолбэк). Порты из config.json.
-def _load_fallback():
-    fb = {}
-    cfg = ROOT / "config.json"
-    agent_path = str(ROOT / "extension" / "agent.py")
-    if cfg.exists():
-        try:
-            d = json.loads(cfg.read_text(encoding="utf-8"))
-            for k, v in d.get("channels", {}).items():
-                if isinstance(v, dict) and "agent" in v:
-                    fb[str(v["agent"])] = agent_path
-        except Exception:
-            pass
-    if not fb:
-        fb = {"8766": agent_path, "8767": agent_path,
-              "8768": agent_path, "8769": agent_path}
-    return fb
-
-FALLBACK = _load_fallback()
+# порт -> путь agent.py (фолбэк)
+FALLBACK = {
+    "8766": r"C:\DeepSeek\extension\agent.py",
+    "8767": r"C:\DeepSeek\extension\agent.py",
+    "8768": r"C:\DeepSeek\extension\agent.py",
+    "8769": r"C:\DeepSeek\extension\agent.py",
+}
 
 
 def _nw():
@@ -113,6 +98,26 @@ def is_alive(port):
         return False
 
 
+PORT_CH = {8766: "A", 8767: "B", 8768: "C", 8769: "D", 8771: "E", 8772: "F"}
+STATE_FILE = ROOT / "runtime" / "lp_spawned.json"
+
+
+def _update_state(port, pid):
+    ch = PORT_CH.get(port)
+    if not ch:
+        return
+    try:
+        import json as _j
+        st = {}
+        if STATE_FILE.exists():
+            st = _j.loads(STATE_FILE.read_text(encoding="utf-8"))
+        st["agent:" + ch] = pid
+        STATE_FILE.write_text(_j.dumps(st, ensure_ascii=False, indent=2), encoding="utf-8")
+        log("state updated: agent:%s=%d" % (ch, pid))
+    except Exception as e:
+        log("state update err: " + repr(e)[:80])
+
+
 def restart(port, agent_path):
     """Поднять агент на порту. Возвращает pid или None."""
     log("restart %s <- %s" % (port, agent_path))
@@ -124,6 +129,8 @@ def restart(port, agent_path):
         time.sleep(4)
         ok = is_alive(port)
         log("pid=%d alive=%s" % (p.pid, ok))
+        if ok:
+            _update_state(port, p.pid)
         return p.pid if ok else None
     except Exception as e:
         log("restart err " + repr(e)[:100])

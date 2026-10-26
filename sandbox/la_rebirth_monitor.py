@@ -195,6 +195,184 @@ def _log_reminder(ch, level, last_id, cmds):
                             "last_id": last_id, "cmds": cmds}, ensure_ascii=False) + "\n")
 
 
+PENDING_DIR = os.path.join(ROOT, "logs", "rebirth")
+
+
+def _pending_file(ch):
+    return os.path.join(PENDING_DIR, "pending_%s.json" % ch)
+
+
+def _pending_write(ch):
+    try:
+        json.dump({"ch": ch, "ts": time.time(), "escalated": 0},
+                  io.open(_pending_file(ch), "w", encoding="utf-8"),
+                  ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def _expected_artifacts(ch, info):
+    ns = info.get("next_series")
+    return {
+        os.path.join(ROOT, "logs", ch, "TODO.md"): ns,
+        os.path.join(ROOT, "logs", ch, "HANDOVER.md"): ns,
+        os.path.join(ROOT, "emergency", "PROMPT_%s.md" % ns): ns,
+        os.path.join(ROOT, "SESSION_STATE.md"): None,
+    }
+
+
+def _verify_artifacts(ch, info, since_ts):
+    exp = _expected_artifacts(ch, info)
+    missing = []
+    for path, marker in exp.items():
+        if not os.path.exists(path):
+            missing.append(os.path.basename(path) + " (missing)")
+            continue
+        try:
+            mt = os.path.getmtime(path)
+        except Exception:
+            missing.append(os.path.basename(path) + " (no mtime)")
+            continue
+        if since_ts and mt < since_ts:
+            missing.append(os.path.basename(path) + " (stale)")
+            continue
+        if marker:
+            try:
+                txt = io.open(path, encoding="utf-8", errors="replace").read()
+            except Exception:
+                txt = ""
+            if marker not in txt:
+                missing.append(os.path.basename(path) + " (no " + marker + ")")
+    return missing
+
+
+def _check_pending(tab):
+    import glob as _g
+    for pf in _g.glob(os.path.join(PENDING_DIR, "pending_*.json")):
+        try:
+            j = json.load(io.open(pf, encoding="utf-8"))
+        except Exception:
+            continue
+        ch = j.get("ch")
+        info = tab["channels"].get(ch)
+        if not ch or not info:
+            continue
+        ts0 = j.get("ts", 0)
+        age = time.time() - ts0
+        missing = _verify_artifacts(ch, info, ts0)
+        if not missing:
+            try:
+                os.remove(pf)
+            except Exception:
+                pass
+            _alog("PENDING %s: artifacts VERIFIED (age %.0fs)" % (ch, age))
+            print("  pending %s: artifacts verified" % ch)
+            continue
+        esc = j.get("escalated", 0)
+        if age > 1800 and esc < 3:
+            j["escalated"] = esc + 1
+            j["ts"] = time.time()
+            try:
+                json.dump(j, io.open(pf, "w", encoding="utf-8"), ensure_ascii=False)
+            except Exception:
+                pass
+            msg = ("[LA>%s] Artifacts NOT ready (%.0f min): %s. "
+                   "Update them so they contain %s, then rebuild." %
+                   (ch, age / 60.0, ", ".join(missing), info.get("next_series")))
+            _kick(ch, msg)
+            _alog("PENDING %s: still missing %d, escalate #%d" % (ch, len(missing), esc + 1))
+            print("  pending %s: escalate #%d, missing %d" % (ch, esc + 1, len(missing)))
+
+
+PENDING_DIR = os.path.join(ROOT, "logs", "rebirth")
+
+
+def _pending_file(ch):
+    return os.path.join(PENDING_DIR, "pending_%s.json" % ch)
+
+
+def _pending_write(ch):
+    try:
+        json.dump({"ch": ch, "ts": time.time(), "escalated": 0},
+                  io.open(_pending_file(ch), "w", encoding="utf-8"),
+                  ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def _expected_artifacts(ch, info):
+    ns = info.get("next_series")
+    return {
+        os.path.join(ROOT, "logs", ch, "TODO.md"): ns,
+        os.path.join(ROOT, "logs", ch, "HANDOVER.md"): ns,
+        os.path.join(ROOT, "emergency", "PROMPT_%s.md" % ns): ns,
+        os.path.join(ROOT, "SESSION_STATE.md"): None,
+    }
+
+
+def _verify_artifacts(ch, info, since_ts):
+    exp = _expected_artifacts(ch, info)
+    missing = []
+    for path, marker in exp.items():
+        if not os.path.exists(path):
+            missing.append(os.path.basename(path) + " (missing)")
+            continue
+        try:
+            mt = os.path.getmtime(path)
+        except Exception:
+            missing.append(os.path.basename(path) + " (no mtime)")
+            continue
+        if since_ts and mt < since_ts:
+            missing.append(os.path.basename(path) + " (stale)")
+            continue
+        if marker:
+            try:
+                txt = io.open(path, encoding="utf-8", errors="replace").read()
+            except Exception:
+                txt = ""
+            if marker not in txt:
+                missing.append(os.path.basename(path) + " (no " + marker + ")")
+    return missing
+
+
+def _check_pending(tab):
+    import glob as _g
+    for pf in _g.glob(os.path.join(PENDING_DIR, "pending_*.json")):
+        try:
+            j = json.load(io.open(pf, encoding="utf-8"))
+        except Exception:
+            continue
+        ch = j.get("ch")
+        info = tab["channels"].get(ch)
+        if not ch or not info:
+            continue
+        ts0 = j.get("ts", 0)
+        age = time.time() - ts0
+        missing = _verify_artifacts(ch, info, ts0)
+        if not missing:
+            try:
+                os.remove(pf)
+            except Exception:
+                pass
+            _alog("PENDING %s: artifacts VERIFIED (age %.0fs)" % (ch, age))
+            print("  pending %s: artifacts verified" % ch)
+            continue
+        esc = j.get("escalated", 0)
+        if age > 1800 and esc < 3:
+            j["escalated"] = esc + 1
+            j["ts"] = time.time()
+            try:
+                json.dump(j, io.open(pf, "w", encoding="utf-8"), ensure_ascii=False)
+            except Exception:
+                pass
+            msg = ("[LA>%s] Artifacts NOT ready (%.0f min): %s. "
+                   "Update them so they contain %s, then rebuild." %
+                   (ch, age / 60.0, ", ".join(missing), info.get("next_series")))
+            _kick(ch, msg)
+            _alog("PENDING %s: still missing %d, escalate #%d" % (ch, len(missing), esc + 1))
+            print("  pending %s: escalate #%d, missing %d" % (ch, esc + 1, len(missing)))
+
+
 def _kick(ch, text):
     import subprocess
     try:
@@ -250,10 +428,14 @@ def rebirth_monitor():
                    ns, nr[0], nr[1], ns))
         _kick(ch, msg)
         _log_reminder(ch, level, lid, cmds)
+        _pending_write(ch)
+        _pending_write(ch)
         print("  -> kicked %s (%s)" % (ch, level))
         _alog("reminder %s level=%s cmds=%d" % (ch, level, cmds))
     _alog("monitor ok: " + " ".join(_summary))
     # hold-режим: если чат канала переполнен — сам ставим ready (триггер №2)
+    _check_pending(tab)
+    _check_pending(tab)
     _check_limit_and_ready(tab)
     # после обхода — проверить флаги готовности
     auto_rebirth_check()

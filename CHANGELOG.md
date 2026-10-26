@@ -4,6 +4,11 @@
 Версионирование: [Semantic Versioning](https://semver.org/lang/ru/).
 
 
+## [2.3.19] - 2026-10-26
+
+### Fixed
+- **la_rebirth_monitor._reminder_fired**: info level blocks if ANY info/warn/critical already logged for the channel (no TTL). warn 2h, critical 30min. Fixes LA stuck-loop: reminded every 30min at cmds 500+ despite artifacts ready and barrier 850 not passed.
+
 ## [2.3.18] - 2026-10-26
 
 ### Fixed

@@ -5,7 +5,7 @@ const MIN_GAP_MS = 5000;
 const SILENCE_MS = 180000;         // порог тишины бриджа (DCCA0022)
 const ALIVE_CHECK_MS = 30000;      // как часто проверять
 const ALIVE_TEXT = "[ALIVE?] Жив? Проверь TODO, если всё сделал и работы завершены и приняты - выключи watchdog!";
-const VERSION = "4.0.0";
+const VERSION = "4.0.2";
 
 const H = "#".repeat(3);
 const MB = H + "BEGIN" + H;
@@ -90,14 +90,40 @@ function parseBlocks(text) {
   return out;
 }
 
+// v4 (22.10): сканируем ТОЛЬКО последние ассистентские сообщения.
+// Раньше сканировалась вся история чата -> старые блоки (stop all)
+// после выпадения из леджера исполнялись заново и гасили систему.
+const SCAN_LAST_MSGS = 3;
+
 function collectActions() {
   const out = [], seen = new Set();
   const add = (a) => { if (a && !seen.has(a.id)) { seen.add(a.id); out.push(a); } };
-  for (const c of document.querySelectorAll("pre, code")) {
-    if (inThinking(c)) continue;
-    const txt = c.textContent || "";
-    if (!txt.includes(H)) continue;
-    for (const a of parseBlocks(txt)) add(a);
+  // 1) DeepSeek: последние N ответов ассистента
+  let nodes = [];
+  const msgs = document.querySelectorAll(".ds-message");
+  for (let i = msgs.length - 1; i >= 0 && nodes.length < SCAN_LAST_MSGS; i--) {
+    const m = msgs[i];
+    if (m.querySelector(".ds-assistant-message-main-content")) {
+      nodes.push(m);
+    }
+  }
+  // 2) fallback для других SPA/разметок: если структуры нет - последний pre-контейнер
+  let scopes;
+  if (nodes.length) {
+    scopes = nodes;
+  } else {
+    const all = document.querySelectorAll("pre, code");
+    scopes = all.length ? [all[all.length - 1]] : [];
+  }
+  for (const scope of scopes) {
+    const pres = scope.matches && scope.matches("pre, code")
+      ? [scope] : scope.querySelectorAll("pre, code");
+    for (const c of pres) {
+      if (inThinking(c)) continue;
+      const txt = c.textContent || "";
+      if (!txt.includes(H)) continue;
+      for (const a of parseBlocks(txt)) add(a);
+    }
   }
   return out;
 }
@@ -113,7 +139,7 @@ function freshOnly(all, st) {
 // hard reload guard v1
 let lastInsertedText = "";
 const recentlySentIds = new Set();   // dedupe fix: ids we just sent
-const RECENT_LIMIT = 200;
+const RECENT_LIMIT = 500;
 let lastInflightAt = 0;
 let lastPanelCheckAt = Date.now();
 let panelStuckPinged = false;
@@ -129,7 +155,21 @@ function addRecent(id) {
     const first = recentlySentIds.values().next().value;
     recentlySentIds.delete(first);
   }
+  // persist (22.10): пережить перезагрузку расширения/страницы
+  try {
+    const arr = Array.from(recentlySentIds).slice(-RECENT_LIMIT);
+    chrome.storage.local.set({ recentlySentIds: arr });
+  } catch (e) { /* ignore */ }
 }
+
+// restore при загрузке: страхует от повторного исполнения старых блоков
+try {
+  chrome.storage.local.get({ recentlySentIds: [] }, (d) => {
+    const arr = (d && d.recentlySentIds) || [];
+    for (const x of arr) recentlySentIds.add(x);
+    console.log("[bridge] restored recentlySentIds:", arr.length);
+  });
+} catch (e) { /* ignore */ }
 
 function userHasTyped() {
   const ta = document.querySelector("textarea");
@@ -239,7 +279,99 @@ async function pushTokenEstimate() {
 setInterval(pushTokenEstimate, 30000);
 setTimeout(pushTokenEstimate, 5000);
 
+
+let lastRetryAt = 0;
+const RETRY_COOLDOWN_MS = 15000;
+
+async function checkStuck() {
+  if (Date.now() - lastRetryAt < RETRY_COOLDOWN_MS) return;
+  // Fix 13A: don't touch the reply we just triggered (may still be generating).
+  if (Date.now() - lastSendAt < 30000) return;
+  if (typeof userHasTyped === 'function' && userHasTyped()) return;
+
+  const btns = Array.from(document.querySelectorAll('button'));
+
+  // If generation is active (Stop button present), do nothing
+  const stopBtn = btns.find(b => {
+    const t = (b.textContent || "").toLowerCase();
+    const al = (b.getAttribute("aria-label") || "").toLowerCase();
+    return t.includes("stop") || t.includes("остановить") || al.includes("stop");
+  });
+  if (stopBtn) return;
+
+  const getVis = (txts) => {
+    const els = Array.from(document.querySelectorAll('button, a, [role="button"], .ds-button'));
+    return els.find(b => {
+      const txt = (b.textContent || "").trim().toLowerCase();
+      const al = (b.getAttribute('aria-label') || "").toLowerCase();
+      const rect = b.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && txts.some(t => txt === t || txt.includes(t) || al.includes(t));
+    });
+  };
+
+  const continueBtn = getVis(["continue", "retry", "try again"]);
+  const regenBtn = getVis(["regenerate", "перегенерировать", "заново", "retry"]);
+
+  // Type 1: Server unavailable
+  if (continueBtn) {
+    console.warn("[bridge] stuck Type 1 (Server unavailable), clicking Continue");
+    continueBtn.click();
+    lastRetryAt = Date.now();
+    if (typeof report === 'function') await report("Fix: Type 1 (Server unavailable) -> Continue", "warn");
+    return;
+  }
+
+  // Type 2: Leaked tags / system text.
+  // Fix 13A: do NOT regenerate if the message contains valid command blocks,
+  // otherwise we kill the reply together with its commands -> deadlock.
+  // Also: require leaked tag AT START of line (real system dump) or Chinese ratio > 30%.
+  if (regenBtn) {
+    const msgs = document.querySelectorAll(".ds-message");
+    if (msgs.length > 0) {
+      const lastMsg = msgs[msgs.length - 1];
+      const contentNode = lastMsg.querySelector(".ds-assistant-message-main-content");
+      if (contentNode) {
+        // guard: if any valid block is inside this reply - skip regen entirely
+        let hasValidBlocks = false;
+        try {
+          const pres = contentNode.querySelectorAll("pre, code");
+          for (const c of pres) {
+            const t = c.textContent || "";
+            if (t.includes(H) && t.includes("BEGIN") && t.includes("END")) { hasValidBlocks = true; break; }
+          }
+        } catch (e) {}
+        if (hasValidBlocks) return;
+
+        const clone = contentNode.cloneNode(true);
+        clone.querySelectorAll("pre, code").forEach(el => el.remove());
+        const text = clone.textContent || "";
+
+        // stricter: leaked tag must be at line start (like "<div>" dump), not inline HTML mention
+        const hasLeakedTag = /(?:^|\n)\s*<[a-z_0-9]{2,}>\s*$/im.test(text);
+        // Chinese: > 30% of non-space chars
+        const nonSpace = (text.match(/\S/g) || []).length || 1;
+        const chineseChars = (text.match(/[\u4e00-\u9fa5]/g) || []).length;
+        const hasChinese = (chineseChars / nonSpace) > 0.30;
+        // system text: require it to be the FIRST line (real leak dump), not a quote
+        const firstLine = (text.split(/\r?\n/).find(l => l.trim()) || "").trim();
+        const hasSystem = firstLine.startsWith("system_warning") ||
+                          firstLine.startsWith("ds_safety") ||
+                          firstLine.startsWith("Pausing task");
+
+        if (hasLeakedTag || hasChinese || hasSystem) {
+            console.warn("[bridge] stuck Type 2 (Leaked tag/system), clicking Regenerate");
+            regenBtn.click();
+            lastRetryAt = Date.now();
+            if (typeof report === 'function') await report("Fix: Type 2 (Leaked tag) -> Regenerate", "warn");
+            return;
+        }
+      }
+    }
+  }
+}
+
 async function scan() {
+  try { await checkStuck(); } catch (e) {}
   try { await checkUserBack(); } catch (e) {}
   // inflight auto-reset: если висим >45s без ответа от фона — сброс
   if (inflight && Date.now() - lastInflightAt > 45000) {
@@ -339,7 +471,8 @@ async function scan() {
     const done = resp.results.filter(r => r.status !== "SKIP");
     if (!done.length) {
       await report("Все уже были", "warn");
-      // watermark-fix (15.10): all SKIP -> send report with nextId
+      // watermark-fix (15.10): даже при всех SKIP вернуть next_id,
+      // чтобы агент сдвинул счётчик (иначе вечный цикл).
       if (resp.nextId) { await typeAndSend(buildReport([], resp.nextId)); lastSendAt = Date.now(); }
       return;
     }
@@ -411,10 +544,14 @@ async function checkAlive() {
   } catch (e) {
     return;
   }
-  silencePinged = true;
   await report("Тишина бриджа > " + _sil + "с — ALIVE", "warn");
-  await typeAndSend(ALIVE_TEXT);
-  lastSendAt = Date.now();
+  const aliveOk = await typeAndSend(ALIVE_TEXT);
+  if (aliveOk) {
+    silencePinged = true;
+    lastSendAt = Date.now();
+  } else {
+    console.warn("[bridge] ALIVE send failed, will retry next tick");
+  }
 }
 setInterval(checkAlive, ALIVE_CHECK_MS);  // gate = st.watchdog.state (synced from file)
 

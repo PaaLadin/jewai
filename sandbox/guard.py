@@ -1,229 +1,213 @@
-"""Guard — timer that wakes helper if lead doesn't send 'done' in time.
-
-Usage:
-  python guard.py start --target 9222 --timeout 180 --label "reload ext" [--notify-port 9223]
-  python guard.py done
-  python guard.py status
-  python guard.py cancel
-
-Files:
-  guard_signal.txt  — state: "armed <ts> target=... timeout=..." / "done <ts>"
-  guard.log         — log
+"""guard.py - independent system guard. Heals: server 8770, autorestart,
+rebirth_monitor, svc watchdogs. Run via Task Scheduler: guard.py --once (every 5 min).
 """
-import sys, os, json, time, subprocess, argparse
+import argparse, json, os, socket, subprocess, sys, time
 from pathlib import Path
-from datetime import datetime
 
-# --- Портирование (jewai): ROOT определяется от файла ---
-_HERE = Path(__file__).resolve().parent
-ROOT = _HERE.parent if _HERE.name in ("sandbox", "extension",
-                                       "council_chat") else _HERE
-SB = ROOT / "sandbox"
-SIGNAL = ROOT / "guard_signal.txt"
-LOG = ROOT / "guard.log"
-PID_FILE = ROOT / "guard.pid"
+ROOT = Path(__file__).resolve().parent.parent
+LOGDIR = ROOT / "logs" / "runtime"
+LOGFILE = LOGDIR / "guard.log"
+STATE = ROOT / "runtime" / "lp_spawned.json"
+PYW = str(Path(sys.executable).with_name("pythonw.exe"))
+PY = sys.executable
+FLAGS = 0x00000008 | 0x00000200 if sys.platform == "win32" else 0
 
 
 def log(msg):
-    line = "[" + datetime.now().isoformat(timespec="seconds") + "] " + msg
+    line = "[%s] %s" % (time.strftime("%Y-%m-%d %H:%M:%S"), msg)
     try:
-        with LOG.open("a", encoding="utf-8") as f:
+        LOGDIR.mkdir(parents=True, exist_ok=True)
+        with open(LOGFILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except Exception:
         pass
     print(line, flush=True)
 
 
-def write_signal(text):
+def spawn(args):
     try:
-        SIGNAL.write_text(text, encoding="utf-8")
+        p = subprocess.Popen(args, cwd=str(ROOT), stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             creationflags=FLAGS)
+        return p.pid
+    except Exception as e:
+        log("spawn ERR %r: %r" % (args, e))
+        return None
+
+
+def port_alive(port):
+    try:
+        s = socket.create_connection(("127.0.0.1", int(port)), timeout=2)
+        s.close()
+        return True
+    except Exception:
+        return False
+
+
+def pid_alive(pid):
+    if not pid:
+        return False
+    try:
+        import ctypes
+        k = ctypes.windll.kernel32
+        h = k.OpenProcess(0x1000, False, int(pid))
+        if not h:
+            return False
+        try:
+            code = ctypes.c_ulong()
+            ok = k.GetExitCodeProcess(h, ctypes.byref(code))
+            return bool(ok) and code.value == 259
+        finally:
+            k.CloseHandle(h)
+    except Exception:
+        return False
+
+
+def wmic_find(marker):
+    out = []
+    try:
+        r = subprocess.run(["wmic", "process", "where",
+                            "name='python.exe' or name='pythonw.exe'",
+                            "get", "ProcessId,CommandLine", "/format:csv"],
+                           capture_output=True, text=True, timeout=20)
+        for line in (r.stdout or "").splitlines():
+            if marker not in line:
+                continue
+            parts = line.strip().split(",")
+            if parts and parts[-1].strip().isdigit():
+                out.append(int(parts[-1].strip()))
+    except Exception as e:
+        log("wmic ERR %r" % (e,))
+    return out
+
+
+def _state_load():
+    try:
+        return json.loads(STATE.read_text(encoding="utf-8")) if STATE.exists() else {}
+    except Exception:
+        return {}
+
+
+def _state_save(st):
+    try:
+        STATE.write_text(json.dumps(st, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         pass
 
 
-def read_signal():
-    if not SIGNAL.exists():
-        return ""
-    try:
-        return SIGNAL.read_text(encoding="utf-8").strip()
-    except Exception:
-        return ""
-
-
-def kick_helper(port, text):
-    script = SB / "bridge_kick.py"
-    if not script.exists():
-        log("bridge_kick.py missing")
-        return False
-    try:
-        r = subprocess.run(
-            [sys.executable, str(script), "--port", str(port), "--text", text, "--wait-empty", "10"],
-            capture_output=True, text=True, timeout=30,
-            encoding="utf-8", errors="replace")
-        log(f"kick {port} rc={r.returncode}")
-        return r.returncode == 0
-    except Exception as e:
-        log(f"kick err: {repr(e)[:120]}")
-        return False
-
-
-def voice_alarm(reason):
-    script = SB / "voice.py"
-    if not script.exists():
-        log("voice.py missing")
-        return
-    try:
-        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
-        subprocess.Popen([sys.executable, str(script), "alarm", reason],
-                         creationflags=flags,
-                         stdin=subprocess.DEVNULL,
-                         stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL)
-    except Exception as e:
-        log(f"voice err: {repr(e)[:120]}")
-
-
-def run_daemon(target_port, timeout_sec, label, notify_port):
-    """Running in background. Sleeps and checks signal."""
-    my_pid = os.getpid()
-    try:
-        PID_FILE.write_text(str(my_pid), encoding="utf-8")
-    except Exception:
-        pass
-
-    started = time.time()
-    write_signal(f"armed {datetime.now().isoformat(timespec='seconds')} target={target_port} timeout={timeout_sec} label={label} pid={my_pid}")
-    log(f"armed target={target_port} timeout={timeout_sec} label={label} notify={notify_port}")
-
-    check_every = 5
-    while time.time() - started < timeout_sec:
-        sig = read_signal()
-        if sig.startswith("done"):
-            log("done signal received, exiting")
-            try: PID_FILE.unlink()
-            except Exception: pass
-            return
-        if sig.startswith("cancel"):
-            log("cancel signal received, exiting")
-            try: PID_FILE.unlink()
-            except Exception: pass
-            return
-        time.sleep(check_every)
-
-    # timeout expired — check one last time
-    sig = read_signal()
-    if sig.startswith("done") or sig.startswith("cancel"):
-        log("late signal, exiting")
-        try: PID_FILE.unlink()
-        except Exception: pass
-        return
-
-    # ALERT
-    log("TIMEOUT, sending alert")
-    alert_text = (
-        f"[GUARD-ALERT] target={target_port} timeout={timeout_sec} "
-        f"label=\"{label}\" no-done-signal. "
-        f"Выполни algorithms/mutual_rescue.md раздел RESCUE."
-    )
-    kick_helper(notify_port, alert_text)
-    log("alert sent, exiting")
-    try: PID_FILE.unlink()
-    except Exception: pass
-
-
-def cmd_start(args):
-    # kill any previous guard daemon
-    if PID_FILE.exists():
-        try:
-            old_pid = int(PID_FILE.read_text(encoding="utf-8").strip())
-            os.kill(old_pid, 9)
-        except Exception:
-            pass
-        try: PID_FILE.unlink()
-        except Exception: pass
-
-    flags = 0
-    if sys.platform == "win32":
-        flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-
-    pythonexe = sys.executable
-    pw = Path(pythonexe).parent / "pythonw.exe"
-    if pw.exists():
-        pythonexe = str(pw)
-
-    proc = subprocess.Popen(
-        [pythonexe, str(Path(__file__)),
-         "--daemon",
-         "--target", str(args.target),
-         "--timeout", str(args.timeout),
-         "--label", args.label,
-         "--notify-port", str(args.notify_port)],
-        creationflags=flags,
-        stdin=subprocess.DEVNULL,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        cwd=str(SB))
-    print(f"guard started pid={proc.pid} target={args.target} timeout={args.timeout} notify={args.notify_port}")
-
-
-def cmd_done(_args):
-    write_signal(f"done {datetime.now().isoformat(timespec='seconds')}")
-    log("done signaled")
-    print("done")
-
-
-def cmd_cancel(_args):
-    write_signal(f"cancel {datetime.now().isoformat(timespec='seconds')}")
-    log("cancel signaled")
-    print("cancel")
-
-
-def cmd_status(_args):
-    sig = read_signal()
-    pid = ""
-    if PID_FILE.exists():
-        try:
-            pid = PID_FILE.read_text(encoding="utf-8").strip()
-        except Exception:
-            pass
-    print("signal:", sig or "(none)")
-    print("pid:", pid or "(none)")
+def check_server():
+    if port_alive(8770):
+        return None
+    log("SERVER 8770 DEAD -> restart")
+    pid = spawn([PYW, str(ROOT / "sandbox" / "council_chat" / "server.py")])
     if pid:
+        time.sleep(3)
+        if port_alive(8770):
+            log("SERVER 8770 restarted pid=%d" % pid)
+            return pid
+        log("SERVER 8770 restart FAILED")
+    return None
+
+
+def check_autorestart():
+    if wmic_find("autorestart.py"):
+        return None
+    log("AUTORESTART DEAD -> restart")
+    pid = spawn([PYW, str(ROOT / "sandbox" / "autorestart.py")])
+    if pid:
+        log("AUTORESTART restarted pid=%d" % pid)
+    return pid
+
+
+def check_rebirth():
+    found = wmic_find("la_rebirth_monitor")
+    if found:
+        st = _state_load()
+        if st.get("rebirth") != found[0]:
+            st["rebirth"] = found[0]
+            _state_save(st)
+        return None
+    log("REBIRTH_MONITOR DEAD -> restart")
+    pid = spawn([PYW, str(ROOT / "sandbox" / "la_rebirth_monitor.py"),
+                 "--loop", "1200", "--rebirth-monitor"])
+    if pid:
+        st = _state_load()
+        st["rebirth"] = pid
+        _state_save(st)
+        log("REBIRTH_MONITOR restarted pid=%d" % pid)
+    return pid
+
+
+def check_la():
+    if port_alive(8090):
+        return None
+    log("LA orchestrator 8090 DEAD -> restart")
+    srv = ROOT / "projects" / "local_ai" / "server.py"
+    if not srv.exists():
+        log("LA server.py MISSING")
+        return None
+    pid = spawn([PYW, str(srv)])
+    if pid:
+        time.sleep(4)
+        if port_alive(8090):
+            log("LA 8090 restarted pid=%d" % pid)
+            return pid
+        log("LA 8090 restart FAILED")
+    return None
+
+
+def check_watchdogs():
+    svcdir = ROOT / "logs" / "svc"
+    if not svcdir.exists():
+        return []
+    healed = []
+    for jf in svcdir.glob("watchdog_*.json"):
+        ch = jf.stem.replace("watchdog_", "")
         try:
-            alive = os.path.exists(f"/proc/{pid}") if os.name != "nt" else True
-            print("alive: (windows check not implemented, assume true if pid set)")
+            st = json.loads(jf.read_text(encoding="utf-8"))
         except Exception:
-            pass
+            continue
+        if st.get("state") != "on":
+            continue
+        if pid_alive(st.get("pid")):
+            continue
+        log("WATCHDOG %s DEAD (state=on) -> svc start" % ch)
+        try:
+            r = subprocess.run([PY, str(ROOT / "sandbox" / "svc.py"),
+                                "start", "--channel", ch, "--kind", "watchdog",
+                                "--interval", "300", "--threshold", "3"],
+                               capture_output=True, text=True, timeout=30, cwd=str(ROOT))
+            if r.returncode == 0:
+                healed.append(ch)
+                log("WATCHDOG %s healed" % ch)
+        except Exception as e:
+            log("WATCHDOG %s heal ERR %r" % (ch, e))
+    return healed
+
+
+def once():
+    check_server()
+    check_autorestart()
+    check_rebirth()
+    check_la()
+    check_watchdogs()
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", nargs="?", default="")
-    ap.add_argument("--target", type=int, default=9222)
-    ap.add_argument("--timeout", type=int, default=180)
-    ap.add_argument("--label", default="critical op")
-    ap.add_argument("--notify-port", type=int, default=9223)
-    ap.add_argument("--daemon", action="store_true")
-    args = ap.parse_args()
-
-    if args.daemon:
-        run_daemon(args.target, args.timeout, args.label, args.notify_port)
-        return
-
-    if args.daemon:
-        return  # already handled above
-
-    if args.cmd == "start":
-        cmd_start(args)
-    elif args.cmd == "done":
-        cmd_done(args)
-    elif args.cmd == "cancel":
-        cmd_cancel(args)
-    elif args.cmd == "status":
-        cmd_status(args)
+    ap.add_argument("--once", action="store_true")
+    ap.add_argument("--loop", type=int, default=0)
+    a = ap.parse_args()
+    if a.loop:
+        log("guard loop start interval=%d" % a.loop)
+        while True:
+            try:
+                once()
+            except Exception as e:
+                log("loop ERR %r" % e)
+            time.sleep(a.loop)
     else:
-        print("usage: guard.py {start|done|cancel|status} [--target N --timeout N --label STR --notify-port N]")
-        print("   or: guard.py --daemon --target N --timeout N --label STR --notify-port N")
+        once()
 
 
 if __name__ == "__main__":

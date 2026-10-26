@@ -49,6 +49,7 @@
 - `procedures/local_ai.md` — локальный ИИ-ассистент (llama.cpp + Qwen2.5-3B + RAG + tools). Локальный, не в git.
 - `procedures/rebirth.md` — перерождение агента: 2 триггера (порог/переполнение), гейт, hold-режим, компоненты, грабли.
 - `procedures/cdp_transport.md` — нативный CDP вместо Playwright (виснет на SPA): cdp_client, read_panel_state2, bridge_kick2, activate_chat.
+- `procedures/see_newborn.md` — контролирующий СМОТРИТ окно новичка через CDP (see_chat.py: скриншот + текст). Когда: сразу после подъёма, при молчании, при неисполнении блоков.
 
 ### Knowledge (карточки внешних моделей)
 

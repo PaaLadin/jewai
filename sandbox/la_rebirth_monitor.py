@@ -160,11 +160,13 @@ def _load_series():
         return None
 
 
-def _reminder_fired(ch, level):
-    """Не спамить: напоминание уровня level каналу ch не чаще 30 мин."""
+def _reminder_fired(ch, level, last_id=None):
+    """No spam: info once per series, warn 2h, critical 30min."""
     if not os.path.exists(REBIRTH_STATE):
         return False
-    cutoff = time.time() - 1800
+    TTL = {"info": None, "warn": 7200, "critical": 1800}
+    ttl = TTL.get(level, 1800)
+    cutoff = (time.time() - ttl) if ttl else 0
     try:
         with io.open(REBIRTH_STATE, "r", encoding="utf-8") as f:
             for line in f:
@@ -172,7 +174,14 @@ def _reminder_fired(ch, level):
                     j = json.loads(line)
                 except Exception:
                     continue
-                if j.get("ch") == ch and j.get("level") == level and j.get("ts", 0) > cutoff:
+                if j.get("ch") != ch:
+                    continue
+                jlvl = j.get("level")
+                jts = j.get("ts", 0)
+                if level == "info":
+                    if jlvl in ("info", "warn", "critical"):
+                        return True
+                elif jlvl == level and jts > cutoff:
                     return True
     except Exception:
         pass
@@ -225,7 +234,7 @@ def rebirth_monitor():
             level = "warn"
         elif cmds >= th.get("info", 500):
             level = "info"
-        if not level or _reminder_fired(ch, level):
+        if not level or _reminder_fired(ch, level, lid):
             continue
         ns = info.get("next_series")
         nr = info.get("next_range", ["?","?"])

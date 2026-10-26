@@ -5,7 +5,7 @@ const MIN_GAP_MS = 5000;
 const SILENCE_MS = 180000;         // порог тишины бриджа (DCCA0022)
 const ALIVE_CHECK_MS = 30000;      // как часто проверять
 const ALIVE_TEXT = "[ALIVE?] Жив? Проверь TODO, если всё сделал и работы завершены и приняты - выключи watchdog!";
-const VERSION = "4.0.2";
+const VERSION = "4.0.3";
 
 const H = "#".repeat(3);
 const MB = H + "BEGIN" + H;
@@ -441,7 +441,9 @@ async function scan() {
 
   if (waitingForReply && fresh.length > 0) {
     waitingForReply = false;
-    silencePinged = false;
+    // 13A fix: do NOT reset silencePinged here. It caused an ALIVE spam loop:
+    // every fresh command reset it -> checkAlive fired again -> [ALIVE?] every 30s.
+    // silencePinged resets only in checkAlive when ping.ago < _sil (agent alive again).
   }
 
   if (!fresh.length) {

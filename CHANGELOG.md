@@ -9,6 +9,11 @@
 ### Fixed
 - **server.py lp_boot/lp_stop(rebirth)**: _kill_all_rebirth_monitors() kills ALL la_rebirth_monitor processes by cmdline, not just state pid. Orphans survived /api/stop and spammed LA. Takes effect on 8770 restart.
 
+## [2.3.20] - 2026-10-26
+
+### Fixed
+- **server.py lp_boot/lp_stop(rebirth)**: _kill_all_rebirth_monitors() kills ALL la_rebirth_monitor processes by cmdline, not just state pid. Orphans survived /api/stop and spammed LA. Takes effect on 8770 restart.
+
 ## [2.3.19] - 2026-10-26
 
 ### Fixed

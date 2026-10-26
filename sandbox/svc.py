@@ -35,8 +35,8 @@ LOG = ROOT / "svc.log"
 
 # Порты: читаются из config.json, хардкод - fallback.
 def _load_ports():
-    agent = {"A": 8766, "B": 8767, "C": 8768, "D": 8769}
-    cdp = {"A": 9222, "B": 9223, "C": 9224, "D": 9225}
+    agent = {"A": 8766, "B": 8767, "C": 8768, "D": 8769, "E": 8771, "F": 8772}
+    cdp = {"A": 9222, "B": 9223, "C": 9224, "D": 9225, "E": 9226, "F": 9227}
     cfg_file = ROOT / "config.json"
     if not cfg_file.exists():
         return agent, cdp
@@ -161,7 +161,7 @@ def start(ch, kind, interval, threshold, cooldown, check_dom=True, dom_stale=15)
             print(json.dumps({"ok": True, "already": True, "pid": r["pid"], "channel": ch, "kind": kind}))
             return 0
         agent = AGENT_PORT[ch]
-        args = [sys.executable, str(ROOT / "sandbox" / "watchdog.py"),
+        args = [str(Path(sys.executable).with_name("pythonw.exe")), str(ROOT / "sandbox" / "watchdog.py"),
                 "--url", "http://127.0.0.1:%d/ping" % agent,
                 "--interval", str(interval), "--threshold", str(threshold),
                 "--log", str(ROOT / ("svc_watchdog_%s.log" % ch)),
@@ -173,7 +173,7 @@ def start(ch, kind, interval, threshold, cooldown, check_dom=True, dom_stale=15)
                 "check_dom": bool(check_dom), "dom_stale": dom_stale}
         pid = spawn(args, ch, kind, meta)
         if kind == "watchdog":
-            write_wd_state(ch, state="on", on_by=getattr(start, "_by", "unknown"),
+            write_wd_state(ch, state="on", pid=pid, on_by=getattr(start, "_by", "unknown"),
                            on_at=time.time())
         log("watchdog %s started pid=%d interval=%d threshold=%d" % (ch, pid, interval, threshold))
         print(json.dumps({"ok": True, "pid": pid, "channel": ch, "kind": kind,
@@ -185,11 +185,11 @@ def start(ch, kind, interval, threshold, cooldown, check_dom=True, dom_stale=15)
             print(json.dumps({"ok": True, "already": True, "pid": r["pid"], "channel": ch, "kind": kind}))
             return 0
         cdp = CDP_PORT[ch]
-        args = [sys.executable, str(ROOT / "sandbox" / "recovery_loop.py"),
+        args = [str(Path(sys.executable).with_name("pythonw.exe")), str(ROOT / "sandbox" / "recovery_loop.py"),
                 "--port", str(cdp), "--cooldown", str(cooldown)]
         if not (ROOT / "sandbox" / "recovery_loop.py").exists():
             # нет цикла — разовый recover
-            args = [sys.executable, str(ROOT / "sandbox" / "recover_chat.py"), str(cdp)]
+            args = [str(Path(sys.executable).with_name("pythonw.exe")), str(ROOT / "sandbox" / "recover_chat.py"), str(cdp)]
         meta = {"cooldown": cooldown, "cdp": cdp}
         pid = spawn(args, ch, kind, meta)
         write_rec_state(ch, state="on", pid=pid, started=time.time(),

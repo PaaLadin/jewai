@@ -5,7 +5,7 @@ const POLL_MS = 2000;
 const STABLE_MS = 1200;
 const COALESCE_MS = 2500;
 const MIN_GAP_MS = 5000;
-const VERSION = "1.1.2";
+const VERSION = "1.1.3";
 
 const H = "#".repeat(3);
 const MB_RE = H + "\\s*BEGIN\\s*" + H;
@@ -140,27 +140,68 @@ function userHasTyped() {
 }
 
 async function typeAndSend(text, force) {
-  if (!force && userHasTyped()) { await report("Пользователь печатает — отложено", "warn"); return false; }
+  if (!force && userHasTyped()) { await report("пользователь печатает — откладываю", "warn"); return false; }
   const ta = qwenTextarea();
-  if (!ta) { await report("Нет textarea Qwen", "err"); return false; }
+  if (!ta) { await report("нет textarea Qwen", "err"); return false; }
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
-  setter.call(ta, text);
-  lastInsertedText = text;
-  ta.dispatchEvent(new Event("input", { bubbles: true }));
-  ta.focus();
-  await sleep(200);
-  if (!ta.value || ta.value.length < 10) { await report("Текст не вставился", "err"); return false; }
-  // канон: двойной Enter
-  for (let round = 0; round < 2; round++) {
-    for (const t of ["keydown", "keypress", "keyup"]) {
-      ta.dispatchEvent(new KeyboardEvent(t, { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-    }
-    await sleep(150);
-    if (!ta.value || ta.value.length < 5) break;
+
+  // clean previous text
+  if ((ta.value || "").length > 0) {
+    ta.focus();
+    setter.call(ta, "");
+    if (ta._valueTracker) ta._valueTracker.setValue("");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+    await sleep(200);
   }
-  await sleep(300);
-  if (ta.value && ta.value.length >= 5) { lastInsertedText = ta.value; return false; }
+
+  // insert text — _valueTracker reset is REQUIRED for React to see the change
+  ta.focus();
+  setter.call(ta, text);
+  if (ta._valueTracker) ta._valueTracker.setValue("");
+  ta.dispatchEvent(new Event("input", { bubbles: true }));
+  ta.dispatchEvent(new Event("change", { bubbles: true }));
+  await sleep(400);
+
+  if (!ta.value || ta.value.length < 10) { await report("текст не вставился", "err"); return false; }
+
+  // try send: native click on send DIV (React 18 delegates to root), then Enter
+  const ok = await trySendQwen(ta);
+  if (!ok) {
+    // mark as stuck so next cycle can retry with fresh text
+    lastInsertedText = "";
+    await report("не удалось отправить — сброс на повтор", "err");
+    return false;
+  }
+  lastInsertedText = text;
   return true;
+}
+
+async function trySendQwen(ta) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    // 1) native click() on the send DIV — trusted path for React synthetic onClick
+    const btn = document.querySelector(".message-input-right-button-send");
+    if (btn) {
+      const r = btn.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        try { btn.click(); } catch (e) {}
+        await sleep(800);
+        if (!ta.value || ta.value.length < 5) return true;
+      }
+    }
+
+    // 2) focus + Enter with proper code/key
+    ta.focus();
+    for (const type of ["keydown", "keypress", "keyup"]) {
+      ta.dispatchEvent(new KeyboardEvent(type, {
+        key: "Enter", code: "Enter", keyCode: 13, which: 13,
+        bubbles: true, cancelable: true
+      }));
+      await sleep(50);
+    }
+    await sleep(800);
+    if (!ta.value || ta.value.length < 5) return true;
+  }
+  return false;
 }
 
 function fmt(r) {
@@ -176,7 +217,75 @@ function fmt(r) {
 const buildReport = (results, nextId) =>
   "[AGENT REPORT]\n" + results.map(fmt).join("\n---\n") + "\nnext_id: " + nextId;
 
+
+let lastRetryAt = 0;
+const RETRY_COOLDOWN_MS = 15000;
+
+async function checkStuck() {
+  if (Date.now() - lastRetryAt < RETRY_COOLDOWN_MS) return;
+  if (typeof userHasTyped === 'function' && userHasTyped()) return;
+
+  const btns = Array.from(document.querySelectorAll('button'));
+
+  // If generation is active (Stop button present), do nothing
+  const stopBtn = btns.find(b => {
+    const t = (b.textContent || "").toLowerCase();
+    const al = (b.getAttribute("aria-label") || "").toLowerCase();
+    return t.includes("stop") || t.includes("остановить") || al.includes("stop");
+  });
+  if (stopBtn) return;
+
+  const getVis = (txts) => {
+    const els = Array.from(document.querySelectorAll('button, a, [role="button"], .ds-button'));
+    return els.find(b => {
+      const txt = (b.textContent || "").trim().toLowerCase();
+      const al = (b.getAttribute('aria-label') || "").toLowerCase();
+      const rect = b.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && txts.some(t => txt === t || txt.includes(t) || al.includes(t));
+    });
+  };
+
+  const continueBtn = getVis(["continue", "retry", "try again"]);
+  const regenBtn = getVis(["regenerate", "перегенерировать", "заново", "retry"]);
+
+  // Type 1: Server unavailable
+  if (continueBtn) {
+    console.warn("[bridge] stuck Type 1 (Server unavailable), clicking Continue");
+    continueBtn.click();
+    lastRetryAt = Date.now();
+    if (typeof report === 'function') await report("Fix: Type 1 (Server unavailable) -> Continue", "warn");
+    return;
+  }
+
+  // Type 2: Leaked tags / system text
+  if (regenBtn) {
+    const msgs = document.querySelectorAll(".ds-message");
+    if (msgs.length > 0) {
+      const lastMsg = msgs[msgs.length - 1];
+      const contentNode = lastMsg.querySelector(".ds-assistant-message-main-content");
+      if (contentNode) {
+        const clone = contentNode.cloneNode(true);
+        clone.querySelectorAll("pre, code").forEach(el => el.remove());
+        const text = clone.textContent || "";
+        
+        const hasLeakedTag = /<[a-z_0-9]+>/i.test(text);
+        const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+        const hasSystem = text.includes("system_warning") || text.includes("ds_safety") || text.includes("Pausing task");
+        
+        if (hasLeakedTag || hasChinese || hasSystem) {
+            console.warn("[bridge] stuck Type 2 (Leaked tag/system), clicking Regenerate");
+            regenBtn.click();
+            lastRetryAt = Date.now();
+            if (typeof report === 'function') await report("Fix: Type 2 (Leaked tag) -> Regenerate", "warn");
+            return;
+        }
+      }
+    }
+  }
+}
+
 async function scan() {
+  try { await checkStuck(); } catch(e) {}
   if (inflight) return;
   const st = await getState();
   if (!st || st.paused || !st.token) return;

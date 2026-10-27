@@ -280,6 +280,86 @@ def step_share(pg, dry=True):
     return url
 
 
+from rebirth_send_prompt import send_prompt_to_chat
+
+def verify_prompt_hits(cdp_port, new_url, prompt_path):
+    """Считает, сколько маркеров PROMPT найдено в теле чата. -> int."""
+    import sys as _sv, os as _ov, io as _iov
+    _sv.path.insert(0, _ov.path.dirname(_ov.path.abspath(__file__)))
+    from cdp_client import CDPSession, list_targets
+
+    with _iov.open(prompt_path, encoding="utf-8") as f:
+        prompt_text = f.read()
+    markers = []
+    for line in prompt_text.splitlines():
+        t = line.strip()
+        if len(t) > 40 and not t.startswith("#") and not t.startswith("---"):
+            markers.append(t[:60])
+        if len(markers) >= 3:
+            break
+    if not markers:
+        return 1  # нечего проверять
+
+    tabs = [x for x in list_targets(cdp_port)
+            if x.get("type") == "page" and "chat.deepseek.com" in x.get("url", "")]
+    if not tabs:
+        return 0
+    tgt = None
+    if new_url:
+        for t in tabs:
+            if new_url.rstrip("/") in t.get("url", ""):
+                tgt = t; break
+    if not tgt:
+        tgt = tabs[-1]
+    s = CDPSession(tgt["webSocketDebuggerUrl"], timeout=60)
+    body = s.eval("document.body.innerText") or ""
+    s.close()
+    return sum(1 for m in markers if m in body)
+
+
+def verify_prompt_in_chat(cdp_port, new_url, prompt_path):
+    """Проверяет, есть ли PROMPT в тексте нового чата.
+    Ищет ключевые маркеры из PROMPT_<next>.md (поведенческие строки).
+    Возвращает True если нашёл, False если нет."""
+    import sys as _sv, os as _ov
+    _sv.path.insert(0, _ov.path.dirname(_ov.path.abspath(__file__)))
+    from cdp_client import CDPSession, list_targets
+    import io as _iov
+
+    with _iov.open(prompt_path, encoding='utf-8') as f:
+        prompt_text = f.read()
+
+    # Берём 3 характерных обрывка из PROMPT (первые непустые строки без плейсхолдеров)
+    markers = []
+    for line in prompt_text.splitlines():
+        s = line.strip()
+        if len(s) > 40 and not s.startswith('#') and not s.startswith('---'):
+            markers.append(s[:60])
+        if len(markers) >= 3:
+            break
+    if not markers:
+        return True  # нечего проверять — считаем OK
+
+    tabs = [x for x in list_targets(cdp_port)
+            if x.get('type') == 'page' and 'chat.deepseek.com' in x.get('url', '')]
+    if not tabs:
+        return False
+    tgt = None
+    if new_url:
+        for t in tabs:
+            if new_url.rstrip('/') in t.get('url', ''):
+                tgt = t
+                break
+    if not tgt:
+        tgt = tabs[-1]
+    s = CDPSession(tgt['webSocketDebuggerUrl'], timeout=60)
+    body = s.eval('document.body.innerText') or ''
+    s.close()
+
+    hits = sum(1 for m in markers if m in body)
+    return hits >= 1
+
+
 def run(ch, live=False, table=None):
     table = table or load_table()
     info = table["channels"][ch]
@@ -336,17 +416,22 @@ def run(ch, live=False, table=None):
                 print("    export_share rc=%d -> %s" % (r.returncode, out_md))
             except Exception as e:
                 print("    export_share ERR: %r" % e)
-        # Native path via rebirth_open.py (tested on B/C/D 2026-10-25).
-        # Playwright send inside rebirth_cdp is unreliable on SPA.
+        # Native path: rebirth_open.py создаёт чат (БЕЗ attach).
+        # Attach через CDP в DeepSeek физически не работает:
+        # input[type=file] скрыт (display:none), setFileInputFiles -> files.length=0,
+        # DataTransfer блокируется. Доставка PROMPT — ТОЛЬКО текстом.
         import subprocess as _spn
         out_json = os.path.join(ROOT, "logs", "rebirth", "open_%s_tmp.json" % ch)
         fill_text = "%s %s" % (info["next_series"], info["name"])
+        prompt_delivered = False
+        prompt_verify_hits = None
+        attach_info = {"ok": False,
+                       "reason": "attach disabled: CDP file input unreliable in DeepSeek"}
         try:
             _r = _spn.run([sys.executable,
                            os.path.join(ROOT, "sandbox", "rebirth_open.py"),
                            "--cdp", str(CDP[ch]),
                            "--fill", fill_text,
-                           "--attach", act, prompt,
                            "--out", out_json],
                           capture_output=True, text=True, timeout=240, cwd=ROOT)
             print("    rebirth_open rc=%d" % _r.returncode)
@@ -362,6 +447,26 @@ def run(ch, live=False, table=None):
             except Exception:
                 _op = {}
             new_url = _op.get("url") or ""
+            if new_url:
+                # ТЕКСТОВАЯ доставка PROMPT — основной путь
+                header_text = "%s %s" % (info["next_series"], info["name"])
+                try:
+                    _sp_ok = send_prompt_to_chat(CDP[ch], new_url, prompt, header_text)
+                    print("    send_prompt (text) ok=%s" % _sp_ok)
+                except Exception as _se:
+                    print("    send_prompt ERR: %r" % _se)
+                    _sp_ok = False
+                time.sleep(3)
+                try:
+                    _hits = verify_prompt_hits(CDP[ch], new_url, prompt)
+                    prompt_verify_hits = _hits
+                    prompt_delivered = _hits >= 1
+                    print("    verify: hits=%d delivered=%s" % (_hits, prompt_delivered))
+                except Exception as _ve:
+                    print("    verify ERR: %r" % _ve)
+                    prompt_delivered = False
+                if not prompt_delivered:
+                    print("    !! PROMPT not confirmed in chat - will log FAIL")
         log = os.path.join(ROOT, "logs", "rebirth", "rebirth_log.jsonl")
         if not new_url:
             with io.open(log, "a", encoding="utf-8") as f:
@@ -385,7 +490,7 @@ def run(ch, live=False, table=None):
                                 "old_chat": info.get("chat_url", ""),
                                 "new_url": new_url,
                                 "share": share_url or "",
-                                "result": "cycle done (native)"},
+                                "attach": attach_info, "prompt_delivered": prompt_delivered, "prompt_verify_hits": prompt_verify_hits, "result": ("cycle done" if prompt_delivered else "FAIL: prompt not delivered")},
                                ensure_ascii=False) + "\n")
         print("    rebirth_log written")
         try:
@@ -399,6 +504,9 @@ def run(ch, live=False, table=None):
             print("    series_table advanced")
         except Exception as e:
             print("    series_table ERR: %r" % e)
+        if not prompt_delivered:
+            print("RESULT: FAIL - chat created but PROMPT not delivered")
+            return 7
         print("RESULT: cycle done, new chat %s" % new_url)
         return 0
 

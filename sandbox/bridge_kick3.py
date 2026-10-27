@@ -21,6 +21,7 @@ if not t:
 s = CDPSession(t["webSocketDebuggerUrl"])
 
 TA = ("(()=>{let ta=document.querySelector('textarea.message-input-textarea');"
+      "if(!ta)ta=document.querySelector('textarea.AliceInput-Textarea');"
       "if(!ta)ta=document.querySelector('textarea:not([readonly]):not([aria-hidden=\"true\"])');"
       "return ta})()")
 
@@ -58,6 +59,15 @@ enter = ("(()=>{const ta=%s;ta.focus();"
 print("enter:", s.eval(enter))
 time.sleep(1.2)
 v = ta_len()
+# Alice (yandex): Enter = перенос строки, нужен клик по кнопке "Отправить"
+if v != 0:
+    alice_send = ("(()=>{const b=document.querySelector('button[aria-label=\"Отправить\"]');"
+                  "if(!b||b.disabled)return 'no_alice_btn';b.click();return 'alice_click'})()")
+    r_alice = s.eval(alice_send)
+    if r_alice != 'no_alice_btn':
+        print("alice_send:", r_alice)
+        time.sleep(1.5)
+        v = ta_len()
 
 # 2) Fallback: click send button
 if v != 0:

@@ -369,14 +369,6 @@ def compute_progress(last_id_str, start_id_str, ch_key):
 
     pref_last, num_last = parsed_last
 
-    if pref_last != expected:
-        if pref_last[:3] == expected[:3]:
-            return {"cmds_from_start": 0,
-                    "risk": risk_level(0, ch_key),
-                    "reason": "series_change"}
-        return {"cmds_from_start": None, "risk": "grey",
-                "reason": "foreign_prefix"}
-
     if not start_id_str:
         return {"cmds_from_start": None, "risk": "grey",
                 "reason": "no_start"}
@@ -387,9 +379,26 @@ def compute_progress(last_id_str, start_id_str, ch_key):
                 "reason": "no_start"}
 
     pref_start, num_start = parsed_start
-    if pref_start != expected:
-        return {"cmds_from_start": 0, "risk": risk_level(0, ch_key),
+
+    # Если start и last в одной серии — считаем разницу напрямую,
+    # независимо от базового префикса канала. Серия может смениться
+    # (AAAA -> AAAB при rebirth), и это не повод обнулять счётчик.
+    if pref_last == pref_start:
+        if num_last < num_start:
+            return {"cmds_from_start": 0, "risk": risk_level(0, ch_key),
+                    "reason": "panel_reset"}
+        cmds = num_last - num_start
+        return {"cmds_from_start": cmds, "risk": risk_level(cmds, ch_key),
+                "reason": "ok"}
+
+    # Разные серии: start из старой, last из новой (или наоборот).
+    # Если last в серии канала — считаем от её начала.
+    if pref_last[:3] == expected[:3] and pref_start[:3] == expected[:3]:
+        return {"cmds_from_start": num_last, "risk": risk_level(num_last, ch_key),
                 "reason": "series_change"}
+
+    return {"cmds_from_start": None, "risk": "grey",
+            "reason": "foreign_prefix"}
 
     if num_last < num_start:
         return {"cmds_from_start": 0, "risk": risk_level(0, ch_key),
@@ -414,18 +423,18 @@ def collect_status():
             res[key] = {"last_access_ts": newest_mtime(paths)}
 
     chat_act = last_chat_activity_by_channel()
-    channels_out = {}
-    for ch_key, ch in CHANNELS.items():
+
+    def _collect_one(ch_key, ch):
         ping = ping_agent(ch["agent"])
         own_logs = ROOT / "logs" / ch_key
         mt = newest_mtime([own_logs], max_depth=2)
         last_act = max(chat_act.get(ch_key, 0), mt)
-        last_id = read_last_id(ch_key)  # этап 3, пока None
+        last_id = read_last_id(ch_key)
         start_id = read_start_id(ch_key)
         prog = compute_progress(last_id, start_id, ch_key)
         svc_wd, svc_rec = read_svc_state(ch_key)
         svc_prm = read_svc_params(ch_key)
-        channels_out[ch_key] = {
+        return ch_key, {
             "agent_ping": bool(ping),
             "panel_alive": None,
             "last_activity_ts": last_act,
@@ -439,6 +448,30 @@ def collect_status():
             "svc_params": svc_prm,
             "alive_button": alive_button_state(ch_key, now),
         }
+
+    channels_out = {}
+    try:
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            futures = [ex.submit(_collect_one, k, v) for k, v in CHANNELS.items()]
+            for f in futures:
+                try:
+                    k, v = f.result(timeout=CDP_TIMEOUT + 2)
+                    channels_out[k] = v
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    for ch_key in CHANNELS:
+        if ch_key not in channels_out:
+            channels_out[ch_key] = {
+                "agent_ping": False, "panel_alive": None,
+                "last_activity_ts": 0, "lastId": None, "startId": None,
+                "cmds_from_start": None, "risk": "grey",
+                "risk_reason": "timeout", "svc_watchdog": False,
+                "svc_recovery": False, "svc_params": {}, "alive_button": "grey",
+            }
+
 
     links = {}
     for ch_key in CHANNELS:

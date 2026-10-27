@@ -172,7 +172,75 @@ function fmt(r) {
 const buildReport = (results, nextId) =>
   "[AGENT REPORT]\n" + results.map(fmt).join("\n---\n") + "\nnext_id: " + nextId;
 
+
+let lastRetryAt = 0;
+const RETRY_COOLDOWN_MS = 15000;
+
+async function checkStuck() {
+  if (Date.now() - lastRetryAt < RETRY_COOLDOWN_MS) return;
+  if (typeof userHasTyped === 'function' && userHasTyped()) return;
+
+  const btns = Array.from(document.querySelectorAll('button'));
+
+  // If generation is active (Stop button present), do nothing
+  const stopBtn = btns.find(b => {
+    const t = (b.textContent || "").toLowerCase();
+    const al = (b.getAttribute("aria-label") || "").toLowerCase();
+    return t.includes("stop") || t.includes("остановить") || al.includes("stop");
+  });
+  if (stopBtn) return;
+
+  const getVis = (txts) => {
+    const els = Array.from(document.querySelectorAll('button, a, [role="button"], .ds-button'));
+    return els.find(b => {
+      const txt = (b.textContent || "").trim().toLowerCase();
+      const al = (b.getAttribute('aria-label') || "").toLowerCase();
+      const rect = b.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && txts.some(t => txt === t || txt.includes(t) || al.includes(t));
+    });
+  };
+
+  const continueBtn = getVis(["continue", "retry", "try again"]);
+  const regenBtn = getVis(["regenerate", "перегенерировать", "заново", "retry"]);
+
+  // Type 1: Server unavailable
+  if (continueBtn) {
+    console.warn("[bridge] stuck Type 1 (Server unavailable), clicking Continue");
+    continueBtn.click();
+    lastRetryAt = Date.now();
+    if (typeof report === 'function') await report("Fix: Type 1 (Server unavailable) -> Continue", "warn");
+    return;
+  }
+
+  // Type 2: Leaked tags / system text
+  if (regenBtn) {
+    const msgs = document.querySelectorAll(".ds-message");
+    if (msgs.length > 0) {
+      const lastMsg = msgs[msgs.length - 1];
+      const contentNode = lastMsg.querySelector(".ds-assistant-message-main-content");
+      if (contentNode) {
+        const clone = contentNode.cloneNode(true);
+        clone.querySelectorAll("pre, code").forEach(el => el.remove());
+        const text = clone.textContent || "";
+        
+        const hasLeakedTag = /<[a-z_0-9]+>/i.test(text);
+        const hasChinese = /[\u4e00-\u9fa5]/.test(text);
+        const hasSystem = text.includes("system_warning") || text.includes("ds_safety") || text.includes("Pausing task");
+        
+        if (hasLeakedTag || hasChinese || hasSystem) {
+            console.warn("[bridge] stuck Type 2 (Leaked tag/system), clicking Regenerate");
+            regenBtn.click();
+            lastRetryAt = Date.now();
+            if (typeof report === 'function') await report("Fix: Type 2 (Leaked tag) -> Regenerate", "warn");
+            return;
+        }
+      }
+    }
+  }
+}
+
 async function scan() {
+  try { await checkStuck(); } catch(e) {}
   if (inflight) return;
   const st = await getState();
   if (!st || st.paused || !st.token) return;

@@ -370,9 +370,65 @@ async function checkStuck() {
   }
 }
 
+async function detectTalkWithoutBlock(st) {
+  // Type 3 (27.10): после compact модель иногда "рассуждает вслух" без блока:
+  // "сейчас проверю", "выведу текст", "нужно выполнить" — но не шлёт ### BEGIN ###.
+  // Мост не получает команду, агент висит.
+  // Триггер: последнее ассистентское сообщение не содержит блок, содержит глагол-обещание,
+  // и с последнего send прошло >30с, и нет свежих команд.
+  try {
+    const msgs = document.querySelectorAll(".ds-message");
+    if (!msgs.length) return;
+    const last = msgs[msgs.length - 1];
+    const node = last.querySelector(".ds-assistant-message-main-content");
+    if (!node) return;
+    // если в этом сообщении уже есть валидный блок - пропустить
+    const pres = node.querySelectorAll("pre, code");
+    for (const c of pres) {
+      if ((c.textContent || "").includes(H + "BEGIN" + H)) return;
+    }
+    // проверить, что сообщение - наше последнее (после него нет user-сообщений)
+    const allMsgs = document.querySelectorAll(".ds-message");
+    let lastUserIdx = -1;
+    for (let i = 0; i < allMsgs.length; i++) {
+      if (allMsgs[i].querySelector(".ds-user-message")) lastUserIdx = i;
+    }
+    if (lastUserIdx >= allMsgs.length - 1) return; // после юзера ещё не ответили
+    // текст без блоков
+    const clone = node.cloneNode(true);
+    clone.querySelectorAll("pre, code").forEach(el => el.remove());
+    const text = (clone.textContent || "").trim();
+    if (text.length < 20) return;
+    // триггеры: обещание действия
+    const talkPattern = /(сейчас\s+(проверю|сделаю|выведу|запущу|посмотрю|исправлю|добавлю|напишу|перепишу)|давай\s+(проверю|сделаю|выведу)|нужно\s+(проверить|сделать|вывести|запустить|исправить)|выведу\s+текст|выполню|запускаю|проверяю\s+через)/i;
+    if (!talkPattern.test(text)) return;
+    // если уже напоминали недавно - не спамить
+    if (Date.now() - lastRetryAt < 120000) return;
+    // с последнего send прошло >30с
+    if (Date.now() - lastSendAt < 30000) return;
+    // убедиться, что нет свежих команд (иначе мост сам подхватит)
+    const st2 = await getState();
+    if (!st2 || st2.paused || !st2.token) return;
+    const all = collectActions();
+    const fresh = freshOnly(all, st2);
+    if (fresh.length > 0) return;
+    // найти textarea и отправить напоминание
+    const ta = document.querySelector("textarea");
+    if (!ta) return;
+    if (typeof userHasTyped === "function" && userHasTyped()) return;
+    const reminder = "[SYS] Format reminder: your last message has NO command block. Talk alone does nothing. Send the next action as a code fence: " + H + "BEGIN" + H + " / id: <NEXT> / op: run|read|write / path or cmd / " + H + "END" + H;
+    console.warn("[bridge] Type 3: talk without block, sending format reminder");
+    await typeAndSend(reminder, true);
+    lastRetryAt = Date.now();
+    lastSendAt = Date.now();
+    if (typeof report === "function") await report("Fix: Type 3 (talk w/o block) -> format reminder", "warn");
+  } catch (e) { console.warn("[bridge] talk detect err:", e); }
+}
+
 async function scan() {
   try { await checkStuck(); } catch (e) {}
   try { await checkUserBack(); } catch (e) {}
+  try { await detectTalkWithoutBlock(await getState()); } catch (e) {}
   // inflight auto-reset: если висим >45s без ответа от фона — сброс
   if (inflight && Date.now() - lastInflightAt > 45000) {
     console.warn("[bridge] inflight auto-reset after 45s");
@@ -423,7 +479,7 @@ async function scan() {
     }
 
     // HARD RESET: если висит >4 минут — перезагрузить расширение изнутри
-    if (!hardReloadFired && stuckMs > 240000) {
+    if (false && !hardReloadFired && stuckMs > 240000) {
       hardReloadFired = true;
       console.warn("[bridge] HARD RESET: panel stuck " + Math.round(stuckMs/1000) + "s, asking background to reload extension");
       try { chrome.runtime.sendMessage({type: "hard-reload"}); }

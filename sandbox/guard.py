@@ -69,7 +69,7 @@ def wmic_find(marker):
         r = subprocess.run(["wmic", "process", "where",
                             "name='python.exe' or name='pythonw.exe'",
                             "get", "ProcessId,CommandLine", "/format:csv"],
-                           capture_output=True, text=True, timeout=20)
+                           capture_output=True, text=True, timeout=20, creationflags=subprocess.CREATE_NO_WINDOW)
         for line in (r.stdout or "").splitlines():
             if marker not in line:
                 continue

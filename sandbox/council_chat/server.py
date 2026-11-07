@@ -1143,7 +1143,7 @@ def _kill_all_rebirth_monitors():
         _r = subprocess.run(["wmic", "process", "where",
                              "name='pythonw.exe' or name='python.exe'",
                              "get", "ProcessId,CommandLine", "/format:csv"],
-                            capture_output=True, text=True, timeout=15)
+                            capture_output=True, text=True, timeout=15, creationflags=subprocess.CREATE_NO_WINDOW)
         for _line in (_r.stdout or "").splitlines():
             if "la_rebirth_monitor" in _line:
                 _parts = _line.strip().split(",")

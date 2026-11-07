@@ -137,6 +137,7 @@ def _dedup_check(frm, to, text):
                 del _dedup_send[k]
     return True
 _status_cache = {"ts": 0, "data": None}
+_status_lock = threading.Lock()
 STATUS_TTL = 2
 
 
@@ -410,6 +411,16 @@ def compute_progress(last_id_str, start_id_str, ch_key):
 
 
 def collect_status():
+    now = time.time()
+    if _status_cache["data"] is not None and (now - _status_cache["ts"]) < STATUS_TTL:
+        return _status_cache["data"]
+    with _status_lock:
+        now = time.time()
+        if _status_cache["data"] is not None and (now - _status_cache["ts"]) < STATUS_TTL:
+            return _status_cache["data"]
+        return _collect_status_inner()
+
+def _collect_status_inner():
     """Состояние по mnemonic_contract.md v1.2."""
     now = time.time()
     if _status_cache["data"] is not None and (now - _status_cache["ts"]) < STATUS_TTL:
@@ -558,6 +569,7 @@ def collect_activity(since):
 
 
 _health_cache = {"ts": 0, "data": None}
+_health_lock = threading.Lock()
 _warm_evt = threading.Event()
 _alive_state = {}
 
@@ -772,6 +784,16 @@ def collect_health():
     now = time.time()
     if _health_cache["data"] is not None and (now - _health_cache["ts"]) < HEALTH_TTL:
         return _health_cache["data"]
+    with _health_lock:
+        now = time.time()
+        if _health_cache["data"] is not None and (now - _health_cache["ts"]) < HEALTH_TTL:
+            return _health_cache["data"]
+        return _collect_health_inner()
+
+def _collect_health_inner():
+    now = time.time()
+    if _health_cache["data"] is not None and (now - _health_cache["ts"]) < HEALTH_TTL:
+        return _health_cache["data"]
     # если prewarm ещё идёт - НЕ блокируем на 20с, отдаём warming сразу
     if not _warm_evt.is_set() and _health_cache["data"] is None:
         return {"ok": True, "warming": True, "ts": now,
@@ -787,7 +809,7 @@ def collect_health():
         svc = {k: ex.submit(svc_status, k) for k in CHANNELS}
         gres = {}
         for k in CHANNELS:
-            lastid, sess = lid[k].result()
+            lastid, sess = lid[k].result(timeout=5)
             wd, rec = svc[k].result()
             gres[k] = (wd, rec, lastid, sess, hb[k].result())
 

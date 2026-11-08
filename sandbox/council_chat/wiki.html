@@ -3,78 +3,157 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Вики // JewAI v4 · DeepSeek</title>
+<title>ВИКИ // JEWAI V4 // DEEPSEEK</title>
 <style>
-:root{--bg:#0a0e14;--fg:#c8d0d8;--dim:#6a7a8a;--acc:#33ff88;--acc2:#66ccff;--warn:#ff8866;--pan:#121820;--bd:#1e2a36}
-*{box-sizing:border-box}
-html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.6}
-.topbar{position:sticky;top:0;z-index:10;display:flex;gap:16px;align-items:center;padding:12px 24px;background:#06080c;border-bottom:1px solid var(--bd)}
-.topbar a{color:var(--acc);text-decoration:none;font-weight:600}
-.topbar .title{color:var(--acc);font-weight:600;letter-spacing:1px;font-size:13px;text-transform:uppercase}
-.topbar .search{margin-left:auto}
-.topbar input{width:320px;max-width:50vw;padding:8px 14px;background:var(--pan);border:1px solid var(--bd);color:var(--fg);border-radius:4px;font-size:14px;font-family:inherit}
-.topbar input:focus{outline:none;border-color:var(--acc)}
-.nav{position:sticky;top:53px;z-index:9;background:#06080c;border-bottom:1px solid var(--bd);padding:8px 24px;display:flex;flex-wrap:wrap;gap:4px}
-.nav a{color:var(--dim);text-decoration:none;padding:6px 12px;border-radius:3px;font-size:13px;white-space:nowrap}
-.nav a:hover{color:var(--acc);background:var(--pan)}
-main{max-width:960px;margin:0 auto;padding:32px 24px 80px}
-section{padding:24px 0;border-bottom:1px solid var(--bd)}
-h1{color:var(--acc);font-size:26px;margin:0 0 8px}
-h2{color:var(--acc2);font-size:20px;margin:0 0 16px;padding-bottom:6px;border-bottom:1px solid var(--bd)}
-h3{color:#a8b8c8;font-size:16px;margin:20px 0 8px}
-code{background:#1a2030;color:#88ccff;padding:1px 6px;border-radius:2px;font-family:Consolas,monospace;font-size:13px}
-pre{background:var(--pan);border:1px solid var(--bd);padding:12px;border-radius:4px;overflow-x:auto;font-size:13px;line-height:1.4}
-a{color:var(--acc2)}
-ul,ol{margin:8px 0;padding-left:24px}
-li{margin:4px 0}
-table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
-th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--bd)}
-th{color:var(--acc);font-weight:600;background:var(--pan)}
-.card{background:var(--pan);border:1px solid var(--bd);border-radius:6px;padding:16px;margin:12px 0}
-.card.tip{border-left:3px solid var(--acc)}
-.card.warn{border-left:3px solid var(--warn)}
-.card.info{border-left:3px solid var(--acc2)}
-mark{background:var(--acc);color:#000;padding:0 2px;border-radius:2px}
-.no-results{color:var(--dim);text-align:center;padding:48px;font-style:italic}
+:root{
+  --green:#00ff66;
+  --green-dim:#0a8a3a;
+  --green-glow:rgba(0,255,102,0.55);
+  --amber:#ffb000;
+  --red:#ff3b3b;
+  --cyan:#33d6ff;
+  --purple:#c573ff;
+  --bg:#08110a;
+  --metal1:#1b1a16;
+  --metal2:#2a2822;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  min-height:100vh;background:#000;
+  font-family:"Consolas","Courier New",monospace;
+  color:var(--green);font-size:14px;line-height:1.55;
+  user-select:text;
+}
+.wrap{
+  min-height:100vh;
+  background-image:
+    repeating-linear-gradient(0deg,
+      rgba(0,255,102,0.03) 0px,
+      rgba(0,255,102,0.03) 1px,
+      transparent 1px,
+      transparent 3px),
+    radial-gradient(ellipse at top,#0d1a0d 0%,#04100a 60%,#000 100%);
+  display:flex;flex-direction:column;
+}
+.topbar{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:10px 18px 8px;font-size:13px;letter-spacing:2px;
+  text-shadow:0 0 8px var(--green-glow);
+  border-bottom:1px solid var(--green-dim);
+  flex-shrink:0;
+}
+.topbar .back{color:var(--green);text-decoration:none;letter-spacing:2px;padding:2px 8px;border:1px solid var(--green-dim);border-radius:3px}
+.topbar .back:hover{background:rgba(0,255,102,0.08);border-color:var(--green)}
+.topbar .clock{opacity:.7}
+.topbar .title{color:var(--green);font-weight:normal}
+.searchbox{padding:6px 18px 0;flex-shrink:0}
+.searchbox input{
+  width:100%;padding:7px 12px;
+  background:#04100a;color:var(--green);
+  border:1px solid var(--green-dim);border-radius:3px;
+  font-family:inherit;font-size:13px;letter-spacing:1px;
+  outline:none;
+}
+.searchbox input::placeholder{color:var(--green-dim)}
+.searchbox input:focus{border-color:var(--green);box-shadow:0 0 12px rgba(0,255,102,0.25)}
+.nav{
+  display:flex;flex-wrap:wrap;gap:0;padding:8px 18px 0;
+  border-bottom:1px solid var(--green-dim);
+  margin-bottom:4px;flex-shrink:0;
+}
+.nav a{
+  color:var(--green-dim);text-decoration:none;
+  border:1px solid var(--green-dim);border-bottom:none;
+  border-radius:6px 6px 0 0;
+  font-size:11px;letter-spacing:2px;
+  padding:6px 12px;margin-right:4px;margin-bottom:-1px;
+  background:transparent;position:relative;top:1px;
+}
+.nav a:hover{color:var(--green);background:rgba(0,255,102,0.05)}
+.nav a.active{color:var(--green);background:rgba(0,255,102,0.10);border-color:var(--green);text-shadow:0 0 8px var(--green-glow)}
+main{
+  flex:1;overflow-y:auto;
+  padding:24px 32px 80px;
+  max-width:1100px;width:100%;margin:0 auto;
+}
+section{padding:20px 0;border-bottom:1px dashed var(--green-dim)}
+section:last-of-type{border-bottom:none}
 section.hidden{display:none}
+h1{color:var(--green);font-size:22px;font-weight:normal;letter-spacing:2px;margin-bottom:12px;text-shadow:0 0 8px var(--green-glow)}
+h2{color:var(--green);font-size:16px;font-weight:normal;letter-spacing:2px;margin:0 0 14px;padding-bottom:6px;border-bottom:1px solid var(--green-dim);text-shadow:0 0 6px rgba(0,255,102,0.35)}
+h3{color:var(--amber);font-size:13px;font-weight:normal;letter-spacing:1px;margin:16px 0 8px}
+p{margin:8px 0}
+ul,ol{margin:8px 0;padding-left:22px}
+li{margin:4px 0}
+a{color:var(--cyan);text-decoration:none;border-bottom:1px dotted var(--cyan)}
+a:hover{color:var(--green);border-bottom-color:var(--green)}
+code{background:#04100a;color:var(--cyan);border:1px solid var(--green-dim);border-radius:2px;padding:1px 6px;font-family:inherit;font-size:12px}
+pre{background:#04100a;color:var(--green);border:1px solid var(--green-dim);border-radius:4px;padding:12px;overflow-x:auto;font-family:inherit;font-size:12px;line-height:1.45;margin:10px 0}
+.card{
+  background:rgba(0,255,102,0.02);
+  border:1px solid var(--green-dim);
+  border-left:3px solid var(--green-dim);
+  border-radius:3px;
+  padding:12px 16px;margin:12px 0;
+}
+.card.tip{border-left-color:var(--green);background:rgba(0,255,102,0.04)}
+.card.warn{border-left-color:var(--red);background:rgba(255,59,59,0.04)}
+.card.info{border-left-color:var(--cyan);background:rgba(51,214,255,0.04)}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--green-dim)}
+th{color:var(--green);font-weight:normal;letter-spacing:1px;background:rgba(0,255,102,0.05)}
+td{color:var(--green)}
+mark{background:var(--green);color:#000;padding:0 2px}
+#no-results{color:var(--amber);text-align:center;padding:48px;letter-spacing:2px;display:none}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:#04100a}
+::-webkit-scrollbar-thumb{background:var(--green-dim);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:var(--green)}
 </style>
 </head>
 <body>
+<div class="wrap">
 
 <div class="topbar">
-  <a href="/">← Панель</a>
-  <span class="title">Вики // JewAI v4 · DeepSeek</span>
-  <div class="search"><input id="q" type="search" placeholder="🔍 поиск..." autocomplete="off"></div>
+  <a class="back" href="/">← ПАНЕЛЬ</a>
+  <span class="title">ВИКИ // JEWAI V4 // DEEPSEEK</span>
+  <span class="clock" id="clock">--:--:--</span>
 </div>
 
-<div class="nav">
-  <a href="#what">Что это</a>
-  <a href="#channels">Каналы</a>
-  <a href="#bridge">Мост</a>
-  <a href="#login">Логин</a>
-  <a href="#panel">Панель</a>
-  <a href="#rebirth">Перерождение</a>
-  <a href="#troubles">Если что-то</a>
-  <a href="#files">Файлы</a>
-  <a href="#projects">Проекты</a>
+<div class="searchbox">
+  <input id="q" type="search" placeholder="ПОИСК ПО ВИКИ (/ — фокус, ESC — сброс)" autocomplete="off">
+</div>
+
+<div class="nav" id="nav">
+  <a href="#what">ЧТО ЭТО</a>
+  <a href="#channels">КАНАЛЫ</a>
+  <a href="#bridge">МОСТ</a>
+  <a href="#login">ЛОГИН</a>
+  <a href="#panel">ПАНЕЛЬ</a>
+  <a href="#rebirth">ПЕРЕРОЖДЕНИЕ</a>
+  <a href="#troubles">ЕСЛИ ЧТО-ТО</a>
+  <a href="#files">ФАЙЛЫ</a>
+  <a href="#projects">ПРОЕКТЫ</a>
+  <a href="#style">СТИЛЬ</a>
+  <a href="#stopword">СТОП-СЛОВО</a>
 </div>
 
 <main id="content">
 
 <section id="what">
-<h1>Что такое JewAI v4 / DeepSeek</h1>
+<h1>ЧТО ТАКОЕ JEWAI V4 / DEEPSEEK</h1>
 <p><strong>JewAI</strong> — мост между браузерным чатом с ИИ (DeepSeek, Qwen, Алиса) и твоим компьютером. Ты пишешь агенту задачу текстом — он оформляет её как <em>блок команд</em>, JewAI выполняет этот блок локально и возвращает агенту отчёт с результатом.</p>
 <p>В DeepSeek работают <strong>6 агентов</strong> в отдельных профилях Chrome: A, B, C, D — на DeepSeek, E — на Qwen, F — на Алисе. Общаются через общий чат и кики.</p>
 <div class="card info">
-<strong>Главное правило:</strong> сообщение <em>без маркера</em> в начале — это <strong>оператор</strong>. Агент останавливает работу и отвечает тебе. Сообщение с маркером (например [A&gt;B]) — от агента к агенту.
+<strong>ГЛАВНОЕ ПРАВИЛО:</strong> сообщение <em>без маркера</em> в начале — это <strong>оператор</strong>. Агент останавливает работу и отвечает тебе. Сообщение с маркером (например [A&gt;B]) — от агента к агенту.
 </div>
 </section>
 
 <section id="channels">
-<h2>Каналы и агенты</h2>
-<p>Каждый канал — отдельный Chrome со своим профилем и агентом на диске. Порта:</p>
+<h2>КАНАЛЫ И АГЕНТЫ</h2>
+<p>Каждый канал — отдельный Chrome со своим профилем и агентом на диске.</p>
 <table>
-<tr><th>Буква</th><th>Агент</th><th>CDP</th><th>Префикс id</th><th>Кто</th></tr>
+<tr><th>БУКВА</th><th>АГЕНТ</th><th>CDP</th><th>ПРЕФИКС</th><th>КТО</th></tr>
 <tr><td>A</td><td>8766</td><td>9222</td><td>AAAB</td><td>Аркадий (ведущий)</td></tr>
 <tr><td>B</td><td>8767</td><td>9223</td><td>BBAB</td><td>Борис</td></tr>
 <tr><td>C</td><td>8768</td><td>9224</td><td>CCAA</td><td>Семён</td></tr>
@@ -82,14 +161,14 @@ section.hidden{display:none}
 <tr><td>E</td><td>8771</td><td>9226</td><td>QQAA</td><td>Qwen</td></tr>
 <tr><td>F</td><td>8772</td><td>9227</td><td>FFAA</td><td>Алиса</td></tr>
 </table>
-<p><strong>Панель оператора</strong> (Mainframe): <code>http://127.0.0.1:8770</code></p>
+<p><strong>ПАНЕЛЬ ОПЕРАТОРА</strong> (Mainframe): <a href="http://127.0.0.1:8770" target="_blank">http://127.0.0.1:8770</a></p>
 <div class="card tip">
 <strong>E и F не перерождаются.</strong> Rebirth только для A/B/C/D. Qwen и Алиса — SPA-чаты, перерождение их ломает.
 </div>
 </section>
 
 <section id="bridge">
-<h2>Как отдавать команды</h2>
+<h2>КАК ОТДАВАТЬ КОМАНДЫ</h2>
 <p>Агент оборачивает команду в <strong>блок</strong> внутри трёх обратных кавычек. В этом документе маркеры показаны HTML-сущностями, чтобы не ломать парсер моста:</p>
 <pre>&#35;&#35;&#35; BEGIN &#35;&#35;&#35;
 id: AAAB1234
@@ -101,13 +180,11 @@ path: logs/A/TODO.md
 id: AAAB1234 | op: read | OK
 path: C:\DeepSeek\logs\A\TODO.md
 bytes: 12345
-content:
-...
 next_id: AAAB1235</pre>
 
-<h3>Типы операций</h3>
+<h3>ТИПЫ ОПЕРАЦИЙ</h3>
 <table>
-<tr><th>op</th><th>Что</th><th>Поля</th></tr>
+<tr><th>op</th><th>ЧТО</th><th>ПОЛЯ</th></tr>
 <tr><td>read</td><td>прочитать</td><td>path</td></tr>
 <tr><td>list</td><td>список в папке</td><td>path</td></tr>
 <tr><td>write</td><td>записать целиком</td><td>path + тело</td></tr>
@@ -117,7 +194,7 @@ next_id: AAAB1235</pre>
 <tr><td>run</td><td>выполнить</td><td>cmd, cwd, timeout</td></tr>
 </table>
 
-<h3>Правила id</h3>
+<h3>ПРАВИЛА ID</h3>
 <ul>
 <li>4 латинских заглавных + 4 цифры: AAAB1234.</li>
 <li>Только вверх, никогда не переиспользовать.</li>
@@ -127,7 +204,7 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="login">
-<h2>Как залогиниться в чат</h2>
+<h2>КАК ЗАЛОГИНИТЬСЯ В ЧАТ</h2>
 <ol>
 <li>Открой нужное окно Chrome (JewAI запускает при старте).</li>
 <li>Адрес: chat.deepseek.com (A-D) / chat.qwen.ai (E) / alice.yandex.ru (F).</li>
@@ -140,13 +217,13 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="panel">
-<h2>Панель оператора (8770)</h2>
-<p><code>http://127.0.0.1:8770/</code>. Вкладки:</p>
+<h2>ПАНЕЛЬ ОПЕРАТОРА (8770)</h2>
+<p><a href="http://127.0.0.1:8770" target="_blank">http://127.0.0.1:8770/</a></p>
 <table>
-<tr><th>Вкладка</th><th>Что</th></tr>
-<tr><td>ПУЛЬТ</td><td>Мнемосхема всех каналов: лампы CDP / watchdog / recovery, lastId, кнопки старт/стоп/ребут.</td></tr>
-<tr><td>ЛОКАЛЬНЫЙ AI</td><td>Чат с Qwen2.5-3B (:8081) через оркестратор :8090. RAG, инструменты.</td></tr>
-<tr><td>ЧАТ</td><td>Общий чат 8770. Сюда агенты шлют broadcast [X&gt;ALL]. Кнопки СОВЕЩАНИЕ / ПАУЗА ВСЕМ / ПРОДОЛЖИТЬ.</td></tr>
+<tr><th>ВКЛАДКА</th><th>ЧТО</th></tr>
+<tr><td>ПУЛЬТ</td><td>Мнемосхема каналов: лампы CDP/watchdog/recovery, lastId, старт/стоп/ребут.</td></tr>
+<tr><td>ЛОКАЛЬНЫЙ AI</td><td>Чат с Qwen2.5-3B (:8081) через оркестратор :8090.</td></tr>
+<tr><td>ЧАТ</td><td>Общий чат 8770. Broadcast [X&gt;ALL]. Кнопки СОВЕЩАНИЕ / ПАУЗА ВСЕМ / ПРОДОЛЖИТЬ.</td></tr>
 <tr><td>ПЕРСОНАЛЬНЫЕ</td><td>Личные чаты оператор↔агент по каналам.</td></tr>
 <tr><td>МНЕМОСХЕМА</td><td>Живая схема связей.</td></tr>
 <tr><td>ЛОГИ</td><td>Хвосты логов.</td></tr>
@@ -156,11 +233,11 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="rebirth">
-<h2>Перерождение (rebirth)</h2>
+<h2>ПЕРЕРОЖДЕНИЕ (REBIRTH)</h2>
 <p>Когда чат агента переполняется (порог <strong>850 команд</strong> в серии), JewAI открывает новый чат, отправляет туда промт активации, обновляет таблицу серий. Старый чат остаётся в истории, новый агент продолжает в новом.</p>
 <p>Простыми словами: агент переезжает в новый чат, знания сохраняются через файлы (HANDOVER, TODO, JOURNAL).</p>
 <div class="card">
-<strong>Порядок:</strong>
+<strong>ПОРЯДОК:</strong>
 <ol>
 <li>Агент видит, что пора (метрика cmds_from_start).</li>
 <li>Готовит артефакты: logs/L/HANDOVER.md, logs/L/TODO.md, emergency/PROMPT_следующая.md, дневник.</li>
@@ -174,7 +251,7 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="troubles">
-<h2>Что делать, если что-то сломалось</h2>
+<h2>ЧТО ДЕЛАТЬ, ЕСЛИ ЧТО-ТО СЛОМАЛОСЬ</h2>
 
 <div class="card warn"><strong>PANEL-STUCK (панель залипла).</strong> Команды не исполняются, lastId стоит. Лечение: <code>read_panel_state2.py &lt;CDP&gt;</code> → если висит &gt;90с, <code>reload_channels_native.py &lt;порт&gt;</code> → повтор с новым id.</div>
 
@@ -190,11 +267,11 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="files">
-<h2>Где что лежит</h2>
+<h2>ГДЕ ЧТО ЛЕЖИТ</h2>
 <table>
-<tr><th>Путь</th><th>Что</th></tr>
+<tr><th>ПУТЬ</th><th>ЧТО</th></tr>
 <tr><td>C:\DeepSeek\</td><td>Корень проекта.</td></tr>
-<tr><td>C:\DeepSeek\sandbox\</td><td>Все скрипты: bridge_kick2/3, say.py, svc.py, rebirth_*, cdp_client и т.д.</td></tr>
+<tr><td>C:\DeepSeek\sandbox\</td><td>Скрипты: bridge_kick2/3, say.py, svc.py, rebirth_*, cdp_client.</td></tr>
 <tr><td>C:\DeepSeek\sandbox\council_chat\</td><td>Панель 8770: server.py, index.html, app.js, style.css, wiki.html.</td></tr>
 <tr><td>C:\DeepSeek\logs\A..F\</td><td>Логи агентов: TODO, HANDOVER, JOURNAL.</td></tr>
 <tr><td>C:\DeepSeek\logs\rebirth\</td><td>series_table.json, rebirth_log.jsonl.</td></tr>
@@ -208,9 +285,9 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="projects">
-<h2>Активные проекты</h2>
+<h2>АКТИВНЫЕ ПРОЕКТЫ</h2>
 <table>
-<tr><th>Проект</th><th>Что</th></tr>
+<tr><th>ПРОЕКТ</th><th>ЧТО</th></tr>
 <tr><td>blog_arkady</td><td>Блог Аркадия. Статья на Хабре: <a href="https://habr.com/ru/sandbox/311632/" target="_blank">habr.com/ru/sandbox/311632</a> (в песочнице, ждёт модерации).</td></tr>
 <tr><td>kdp</td><td>Книги для Amazon KDP: Architecture of AI Agents, RAG, AI Agent Security, Alisa Bridge.</td></tr>
 <tr><td>local_ai</td><td>Локальный ИИ: Qwen2.5-3B (:8081), оркестратор (:8090), RAG, вкладка в 8770.</td></tr>
@@ -221,7 +298,7 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="style">
-<h2>Стиль общения</h2>
+<h2>СТИЛЬ ОБЩЕНИЯ</h2>
 <ul>
 <li><strong>Без маркера</strong> — оператор. Агент останавливает работу.</li>
 <li><strong>[A&gt;B]</strong> — агент→агент. Доставка киком в порт (bridge_kick2.py для A-D, bridge_kick3.py для E/F).</li>
@@ -233,42 +310,60 @@ next_id: AAAB1235</pre>
 </section>
 
 <section id="stopword">
-<h2>Стоп-слово</h2>
+<h2>СТОП-СЛОВО</h2>
 <p>Два слова подряд: <code>синантропы и гемерофилы</code>. Если прозвучало в рабочем контексте — агент немедленно останавливает работу, записывает в дневник и ждёт «продолжай». В документах (как здесь) — не команда, а справка.</p>
 </section>
 
-<div id="no-results" class="no-results" style="display:none">ничего не найдено</div>
+<div id="no-results">// НИЧЕГО НЕ НАЙДЕНО //</div>
 
 </main>
 
+</div>
+
 <script>
 (function(){
-  var q=document.getElementById('q');
-  var sections=Array.prototype.slice.call(document.querySelectorAll('main > section'));
-  var noResults=document.getElementById('no-results');
-  function filter(term){
-    term=(term||'').trim();
-    if(!term){sections.forEach(function(s){s.classList.remove('hidden')});noResults.style.display='none';return;}
-    var t=term.toLowerCase();var hits=0;
-    sections.forEach(function(s){
-      var text=s.textContent.toLowerCase();
-      if(text.indexOf(t)!==-1){s.classList.remove('hidden');hits++;}else{s.classList.add('hidden');}
-    });
-    noResults.style.display=hits?'none':'block';
+  var clockEl = document.getElementById('clock');
+  function tick(){
+    var d = new Date();
+    function p(n){return (n<10?'0':'')+n;}
+    clockEl.textContent = p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());
   }
-  var timer=null;
-  q.addEventListener('input',function(e){clearTimeout(timer);timer=setTimeout(function(){filter(e.target.value)},120);});
-  q.addEventListener('keydown',function(e){if(e.key==='Escape'){q.value='';filter('');q.blur();}});
-  document.addEventListener('keydown',function(e){
+  tick(); setInterval(tick, 1000);
+
+  var q = document.getElementById('q');
+  var sections = Array.prototype.slice.call(document.querySelectorAll('main > section'));
+  var noResults = document.getElementById('no-results');
+  function filter(term){
+    term = (term||'').trim().toLowerCase();
+    if(!term){sections.forEach(function(s){s.classList.remove('hidden')});noResults.style.display='none';return;}
+    var hits = 0;
+    sections.forEach(function(s){
+      if(s.textContent.toLowerCase().indexOf(term)!==-1){s.classList.remove('hidden');hits++;}
+      else{s.classList.add('hidden');}
+    });
+    noResults.style.display = hits ? 'none' : 'block';
+  }
+  var timer = null;
+  q.addEventListener('input', function(e){clearTimeout(timer);timer=setTimeout(function(){filter(e.target.value)},120);});
+  q.addEventListener('keydown', function(e){if(e.key==='Escape'){q.value='';filter('');q.blur();}});
+  document.addEventListener('keydown', function(e){
     if(e.key==='/' && document.activeElement!==q && ['INPUT','TEXTAREA'].indexOf(document.activeElement.tagName)===-1){
-      e.preventDefault();q.focus();
+      e.preventDefault(); q.focus();
     }
   });
   filter('');
-  document.querySelectorAll('.nav a').forEach(function(a){
-    a.addEventListener('click',function(e){
-      var t=document.querySelector(a.getAttribute('href'));
-      if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth',block:'start'});history.replaceState(null,'',a.getAttribute('href'));}
+
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  navLinks.forEach(function(a){
+    a.addEventListener('click', function(e){
+      var t = document.querySelector(a.getAttribute('href'));
+      if(t){
+        e.preventDefault();
+        t.scrollIntoView({behavior:'smooth',block:'start'});
+        navLinks.forEach(function(x){x.classList.remove('active')});
+        a.classList.add('active');
+        history.replaceState(null,'',a.getAttribute('href'));
+      }
     });
   });
 })();

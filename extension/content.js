@@ -3,7 +3,8 @@ const STABLE_MS = 1200;
 const COALESCE_MS = 2500;
 const MIN_GAP_MS = 5000;
 const SILENCE_MS = 180000;         // порог тишины бриджа (DCCA0022)
-const ALIVE_CHECK_MS = 30000;      // как часто проверять
+const ALIVE_CHECK_MS = 30000;
+const ALIVE_REPEAT_MS = 1800000;  // ALIVE spam fix 11B      // как часто проверять
 const ALIVE_TEXT = "[ALIVE?] Жив? Проверь TODO, если всё сделал и работы завершены и приняты - выключи watchdog!";
 const VERSION = "4.0.3";
 
@@ -21,6 +22,7 @@ let lastChangeAt = Date.now();
 let lastSendAt = 0;
 let waitingForReply = false;
 let silencePinged = false;
+let aliveSentAt = 0;  // ALIVE spam fix 11B
 
 console.log("[bridge] content v" + VERSION + " loaded");
 
@@ -186,6 +188,13 @@ async function checkUserBack() {
   const ta = document.querySelector("textarea");
   if (!ta) { voiceStopSent = false; return; }
   const v = (ta.value || "").trim();
+  // 9C fix: distinguish operator typing from bridge/system messages.
+  // Bridge content, kicks and system markers always start with "[".
+  // Operator typing rarely does. If it starts with "[", it's not the operator.
+  if (v && v.startsWith("[")) {
+    voiceStopSent = false;
+    return;
+  }
   const typed = v && v !== lastInsertedText && !v.startsWith("[AGENT REPORT]");
   if (!typed) { voiceStopSent = false; return; }
   if (voiceStopSent) return;
@@ -384,8 +393,18 @@ async function detectTalkWithoutBlock(st) {
     if (!node) return;
     // если в этом сообщении уже есть валидный блок - пропустить
     const pres = node.querySelectorAll("pre, code");
+    let hasFencedBlock = false;
     for (const c of pres) {
-      if ((c.textContent || "").includes(H + "BEGIN" + H)) return;
+      if ((c.textContent || "").includes(H + "BEGIN" + H)) { hasFencedBlock = true; break; }
+    }
+    if (hasFencedBlock) return;
+    if ((node.textContent || "").includes(H + "BEGIN" + H)) {
+      const noFenceReminder = "[SYS] Format error: Block found, but it is NOT wrapped in a code fence. Bridge cannot read it. YOU MUST use triple backticks.";
+      await typeAndSend(noFenceReminder, true);
+      lastRetryAt = Date.now();
+      lastSendAt = Date.now();
+      if (typeof report === "function") await report("Fix: Block without code fence", "warn");
+      return;
     }
     // проверить, что сообщение - наше последнее (после него нет user-сообщений)
     const allMsgs = document.querySelectorAll(".ds-message");
@@ -416,7 +435,7 @@ async function detectTalkWithoutBlock(st) {
     const ta = document.querySelector("textarea");
     if (!ta) return;
     if (typeof userHasTyped === "function" && userHasTyped()) return;
-    const reminder = "[SYS] Format reminder: your last message has NO command block. Talk alone does nothing. Send the next action as a code fence: " + H + "BEGIN" + H + " / id: <NEXT> / op: run|read|write / path or cmd / " + H + "END" + H;
+    const reminder = "[SYS] Format reminder: your last message has NO command block OR it lacks the Markdown code fence. Talk alone does nothing. YOU MUST wrap your next action in triple backticks exactly like this:\n" + String.fromCharCode(96).repeat(3) + "\n" + H + "BEGIN" + H + "\nid: <NEXT>\nop: run|read|write\npath or cmd\n" + H + "END" + H + "\n" + String.fromCharCode(96).repeat(3);
     console.warn("[bridge] Type 3: talk without block, sending format reminder");
     await typeAndSend(reminder, true);
     lastRetryAt = Date.now();
@@ -570,6 +589,7 @@ chrome.runtime.onMessage.addListener((msg, _s, respond) => {
 // Если трафик есть (команды/отчёты идут) — молчим, не жжём токены.
 async function checkAlive() {
   if (silencePinged) return;
+  if (Date.now() - aliveSentAt < ALIVE_REPEAT_MS) return;  // ALIVE spam fix 11B
   const st = await getState();
   if (!st || !st.token || st.paused) return;
   const url = st.agentUrl;
@@ -606,6 +626,7 @@ async function checkAlive() {
   const aliveOk = await typeAndSend(ALIVE_TEXT);
   if (aliveOk) {
     silencePinged = true;
+    aliveSentAt = Date.now();  // ALIVE spam fix 11B
     lastSendAt = Date.now();
   } else {
     console.warn("[bridge] ALIVE send failed, will retry next tick");

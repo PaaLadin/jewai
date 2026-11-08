@@ -1,3 +1,6 @@
+import sys
+sys.dont_write_bytecode = True
+
 import json, shutil, subprocess, secrets, hashlib, tempfile, time, sys
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
@@ -6,6 +9,7 @@ from datetime import datetime
 # --- Портирование (jewai): ROOT от файла ---
 _HERE = Path(__file__).resolve().parent
 ROOT = _HERE.parent if _HERE.name == "extension" else _HERE
+EXTRA_ROOTS = [Path("C:/JewAI")]
 ROOT.mkdir(parents=True, exist_ok=True)
 TOKEN_FILE = ROOT / ".agent_token"
 # no-window flags (перенос из v2, патч 4A)
@@ -52,6 +56,10 @@ def safe_path(rel):
     if not rel:
         raise ValueError("empty path")
     p = (ROOT / rel).resolve()
+    for _er in EXTRA_ROOTS:
+        _er = _er.resolve()
+        if p == _er or _er in p.parents:
+            return p
     if p != ROOT and ROOT not in p.parents:
         raise ValueError(f"escape: {rel}")
     return p
@@ -176,12 +184,12 @@ class H(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/ping":
-            return self._j(200, {"ok": True, "root": str(ROOT), "version": "4.0.0",
+            return self._j(200, {"ok": True, "root": str(ROOT), "version": "4.0.1",
                                  "last_ts": _LAST_TS,
                                  "ago": round(time.time() - _LAST_TS, 1)})
         if self.path == "/health":
             return self._j(200, {"ok": True, "uptime": round(time.time() - START, 1),
-                                 "stats": STATS, "root": str(ROOT), "version": "4.0.0"})
+                                 "stats": STATS, "root": str(ROOT), "version": "4.0.1"})
         return self._j(404, {"error": "not found"})
 
     def do_POST(self):
@@ -315,11 +323,18 @@ class H(BaseHTTPRequestHandler):
                     return self._j(200, {"ok": False, "error": repr(e)[:200]})
 
             if op == "/notify-stop":
-                stopfile = ROOT / "notify.stop"
+                # 9C fix: notify_me.py watches runtime/notify.stop, not root.
+                stopfile = ROOT / "runtime" / "notify.stop"
                 try:
+                    stopfile.parent.mkdir(parents=True, exist_ok=True)
                     stopfile.write_text("stop", encoding="utf-8")
-                    log("NOTIFY-STOP", "created")
-                    return self._j(200, {"ok": True})
+                    # also touch root path for old versions
+                    try:
+                        (ROOT / "notify.stop").write_text("stop", encoding="utf-8")
+                    except Exception:
+                        pass
+                    log("NOTIFY-STOP", "created at " + str(stopfile))
+                    return self._j(200, {"ok": True, "path": str(stopfile)})
                 except Exception as e:
                     return self._j(200, {"ok": False, "error": repr(e)[:200]})
 

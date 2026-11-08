@@ -1,5 +1,5 @@
 const DEFAULTS = {
-  token: "", agentUrl: "http://127.0.0.1:8760", expectedPrefix: "",
+  token: "", agentUrl: "http://127.0.0.1:8766",
   paused: false, autoConfirm: false,
   ledger: [], lastId: "", lastIds: {}, pending: null,
   status: { text: "idle", level: "info", ts: Date.now() },
@@ -7,6 +7,7 @@ const DEFAULTS = {
   tokenEstimate: 0, tokenPercent: 0, tokenLimit: 3600, tokenWarned: {}, tokenLevel: "ok", sendCount: 0,
   aliveSilence: 180,
   ledgerByPrefix: {}, failCount: 0, lastCmdTs: 0, sessionStartTs: 0,
+  voiceActive: false,
   health: { agent: "unknown", ts: 0, fails: 0, lastError: "" },
   svc: {},
   // ALIVE+watchdog (DCCA0022): состояние стора + кто включил
@@ -16,26 +17,6 @@ const DEFAULTS = {
 };
 
 const get = async () => ({ ...DEFAULTS, ...(await chrome.storage.local.get(DEFAULTS)) });
-
-// Автоопределение агента с фильтром по expectedPrefix.
-// Если expectedPrefix пуст - ищем любого живого (обратная совместимость).
-async function detectAgentPort(expectedPrefix) {
-  const found = [];
-  for (let p = 8760; p <= 8790; p++) {
-    try {
-      const r = await fetch(`http://127.0.0.1:${p}/ping`, { method: "GET" });
-      if (r.ok) {
-        const d = await r.json();
-        // фильтр по prefix, если задан
-        if (!expectedPrefix || d.prefix === expectedPrefix) {
-          found.push({ port: p, prefix: d.prefix, channel: d.channel });
-          if (expectedPrefix) break; // точное совпадение - сразу вернуть
-        }
-      }
-    } catch (e) { /* порт молчит */ }
-  }
-  return found;
-}
 const set = async (p) => chrome.storage.local.set(p);
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -136,22 +117,8 @@ async function pushLedger(entry) {
 async function heartbeat() {
   const s = await get();
   if (!s.token) return;
-  let r = await fetchAgent("/ping", null, "GET");
-  let ok = r && r.ok;
-
-  // Если не отвечает - попробовать найти с фильтром по expectedPrefix.
-  if (!ok && s.expectedPrefix) {
-    const list = await detectAgentPort(s.expectedPrefix);
-    if (list.length > 0) {
-      const target = `http://127.0.0.1:${list[0].port}`;
-      if (String(s.agentUrl) !== target) {
-        await set({ agentUrl: target });
-        r = await fetchAgent("/ping", null, "GET");
-        ok = r && r.ok;
-        if (ok) await status(`Агент ${list[0].channel} найден на ${list[0].port}`, "ok");
-      }
-    }
-  }
+  const r = await fetchAgent("/ping", null, "GET");
+  const ok = r && r.ok;
   const prevFails = (s.health && s.health.fails) || 0;
   const fails = ok ? 0 : prevFails + 1;
   const health = {
@@ -203,20 +170,21 @@ async function syncWatchdogState() {
       try { rc = JSON.parse(r2.content); } catch (e) { rc = null; }
     }
     if (!wd && !rc) return;
-    const cur = (await get()).watchdog || {};
-    const next = wd ? {
-      state: wd.state || "off",
-      on_by: wd.on_by || null,
-      on_at: wd.on_at || null,
-      off_by: wd.off_by || null,
-      off_at: wd.off_at || null,
-    } : cur;
-    // Пишем ВСЕГДА оба места (дёшево, раз в 20с).
+
     const s2 = await get();
     const svc = { ...(s2.svc || {}) };
     svc[ch] = svc[ch] || {};
-    let svcChanged = false;
+    let changed = false;
+
     if (wd) {
+      const cur = (await get()).watchdog || {};
+      const next = {
+        state: wd.state || "off",
+        on_by: wd.on_by || null,
+        on_at: wd.on_at || null,
+        off_by: wd.off_by || null,
+        off_at: wd.off_at || null,
+      };
       svc[ch].watchdog = {
         on: next.state === "on",
         on_by: next.on_by,
@@ -228,9 +196,10 @@ async function syncWatchdogState() {
           || cur.off_by !== next.off_by
           || !curSvc || curSvc.on !== (next.state === "on")) {
         await set({ watchdog: next });
-        svcChanged = true;
+        changed = true;
       }
     }
+
     if (rc) {
       const rcState = rc.state || "off";
       const curRc = (s2.svc || {})[ch] && (s2.svc || {})[ch].recovery;
@@ -243,10 +212,11 @@ async function syncWatchdogState() {
       if (!curRc || curRc.on !== (rcState === "on")
           || curRc.on_by !== (rc.on_by || null)
           || curRc.off_by !== (rc.off_by || null)) {
-        svcChanged = true;
+        changed = true;
       }
     }
-    if (svcChanged) {
+
+    if (changed) {
       await set({ svc });
       chrome.runtime.sendMessage({ type: "state-changed" }).catch(() => {});
     }
@@ -295,18 +265,30 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
 
     if (msg.type === "notify-stop") {
       const s = await get();
-      try {
-        const r = await fetch(s.agentUrl + "/notify-stop", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "X-Token": s.token },
-          body: JSON.stringify({}),
-        });
-        const j = await r.json();
-        await status("Voice stop signal sent", "warn");
-        return respond(j);
-      } catch (e) {
-        return respond({ ok: false, error: String(e) });
-      }
+      // 9C fix v2: ВСЕГДА отправляем notify-stop в agent.
+      // agent сам проверит notify.stop и остановит notify_me.py.
+      // fire-and-forget: onMessage не блокируется, таймаут 5 минут.
+      await set({ voiceActive: false });
+      (async () => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 5 * 60 * 1000);
+        try {
+          const r = await fetch(s.agentUrl + "/notify-stop", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-Token": s.token },
+            body: JSON.stringify({}),
+            signal: ctrl.signal,
+          });
+          const j = await r.json();
+          await status("Voice stop sent: " + (j.path || "ok"), "warn");
+          void j;
+        } catch (e) {
+          await status("Voice stop failed: " + String(e).slice(0, 60), "warn");
+        } finally {
+          clearTimeout(timer);
+        }
+      })();
+      return respond({ ok: true, queued: true });
     }
 
     if (msg.type === "notify") {
@@ -322,6 +304,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
           }),
         });
         const j = await r.json();
+        await set({ voiceActive: true });
         await status("Notify sent: pid=" + (j.pid || "?"), "warn");
         return respond(j);
       } catch (e) {
@@ -376,7 +359,7 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
       }
       if (!lastActionId) lastActionId = msg.actions[msg.actions.length - 1].id;
       await status("Отдаю отчёт в content", "info");
-      // watermark-fix (15.10): nextId not below last successful
+      // watermark-fix (15.10): nextId не ниже водяной метки префикса
       const _st = await get();
       const _pref = (lastActionId || "").slice(0, 4);
       const _wm = (_st.lastIds && _st.lastIds[_pref]) || "";

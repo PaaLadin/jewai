@@ -205,6 +205,10 @@ function initTabs(){
       if(scr) scr.classList.add('active');
       if(t.dataset.tab==='mnemo' && window.__mnemoRefresh) window.__mnemoRefresh();
       if(t.dataset.tab==='logs' && window.__logsRefresh) window.__logsRefresh();
+      if(t.dataset.tab==='wiki'){
+        const f=document.getElementById('wikiFrame');
+        if(f && f.getAttribute('src')==='about:blank'){ f.src='/wiki.html'; }
+      }
     });
   });
 }

@@ -1352,6 +1352,8 @@ def lp_restart(target):
 
 
 class Handler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+
     def log_message(self, *a, **kw):
         pass
 
@@ -1400,6 +1402,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, p.read_text(encoding="utf-8"), "text/html; charset=utf-8")
             else:
                 self._send(404, "not found", "text/plain")
+        elif self.path == "/wiki" or self.path == "/wiki.html":
+            p = CHAT_DIR / "wiki.html"
+            if p.exists():
+                self._send(200, p.read_text(encoding="utf-8"), "text/html; charset=utf-8")
+            else:
+                self._send(404, "wiki.html missing", "text/plain")
         elif self.path == "/api/projects":
             self._send(200, {"ok": True, "projects": scan_projects()})
         elif self.path.startswith("/roadmap/"):
@@ -1423,7 +1431,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            self.send_response(404); self.end_headers(); return
+            self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return
         elif self.path == "/roadmap.html" or self.path == "/roadmap":
             rm_file = ROOT / "game" / "ROADMAP.html"
             if rm_file.exists():
@@ -1434,7 +1442,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            self.send_response(404); self.end_headers(); return
+            self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return
         elif self.path == "/projects.html" or self.path == "/projects":
             proj_file = ROOT / "sandbox" / "council_chat" / "projects.html"
             if proj_file.exists():
@@ -1445,7 +1453,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(body)
                 return
-            self.send_response(404); self.end_headers(); return
+            self.send_response(404); self.send_header("Content-Length", "0"); self.end_headers(); return
         elif self.path == "/style.css":
             p = CHAT_DIR / "style.css"
             self._send(200, p.read_text(encoding="utf-8"), "text/css; charset=utf-8")

@@ -1,322 +1,299 @@
 {
  "pages": {
+  "functions/adapters": {
+   "title": "Адаптеры — какие LLM поддерживаются",
+   "tags": [
+    "адаптеры",
+    "llm",
+    "модели"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Адаптеры</h1>\n<p>Адаптер — модуль, который знает, как работать с конкретным чатом LLM.\nJewAI через адаптер читает ответы и пишет в поле ввода.</p>\n<h2>Какие есть</h2>\n<table>\n<thead>\n<tr>\n<th>Адаптер</th>\n<th>Чат</th>\n<th>Статус</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>deepseek</td>\n<td>chat.deepseek.com</td>\n<td>рабочий, по умолчанию</td>\n</tr>\n<tr>\n<td>qwen</td>\n<td>chat.qwen.ai</td>\n<td>каркас, ждёт live-теста</td>\n</tr>\n<tr>\n<td>alice</td>\n<td>alice.yandex.ru</td>\n<td>каркас, ждёт live-теста</td>\n</tr>\n<tr>\n<td>google</td>\n<td>google.com (AI Mode)</td>\n<td>каркас, один live-тест</td>\n</tr>\n</tbody>\n</table>\n<p>Сейчас все каналы (A/B/C/D) работают на DeepSeek. Остальные — опции.</p>\n<h2>Как переключать</h2>\n<p>Через панель оператора: вкладка настроек (⚙) → выбрать модель для канала.\nПод капотом — запись в конфиг канала.</p>\n<h2>Что умеет адаптер</h2>\n<ul>\n<li><strong>Найти вкладку чата</strong> в браузере — по подстроке URL.</li>\n<li><strong>Прочитать новые блоки</strong> из переписки — с учётом защиты от повторов.</li>\n<li><strong>Вставить текст</strong> в поле ввода и отправить.</li>\n<li><strong>Проверить, что сообщение ушло</strong> — по маркерам в теле.</li>\n<li><strong>Создать новый чат</strong> — для перерождения.</li>\n</ul>\n<h2>Зачем разные адаптеры</h2>\n<p>Каждый чат устроен по-своему: где поле ввода, как устроена кнопка «отправить»,\nкак отличить ответ ИИ от реплики человека. Адаптер инкапсулирует эти отличия.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/llm-local\" class=\"wiki-link\">functions/llm-local</a> — локальная LLM</li>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a> — перерождение через новый чат</li>\n</ul>"
+  },
   "functions/bridge": {
-   "title": "Мост: команды и отчёты",
+   "title": "Мост — как команда доходит до диска",
    "tags": [
     "мост",
-    "блоки",
-    "agent-report",
-    "id"
+    "команды",
+    "архитектура"
    ],
-   "related": [
-    "functions/channels",
-    "troubleshooting/bridge_no_response"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Мост: команды и отчёты</h1>\n<p>Агент оборачивает команду в <strong>блок</strong> внутри трёх обратных кавычек. Мост ловит,\nшлёт локальному Python, тот выполняет и возвращает <code>[AGENT REPORT]</code>.</p>\n<h2>Формат блока</h2>\n<ul>\n<li>Открывающая строка: три решётки + BEGIN + три решётки.</li>\n<li>Внутри — <code>id</code>, <code>op</code>, <code>path</code> (каждый на своей строке).</li>\n<li>Закрывающая: три решётки + END + три решётки.</li>\n</ul>\n<h2>Операции</h2>\n<table>\n<thead>\n<tr>\n<th>op</th>\n<th>Что</th>\n<th>Поля</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>read</td>\n<td>прочитать файл</td>\n<td>path</td>\n</tr>\n<tr>\n<td>list</td>\n<td>список в папке</td>\n<td>path</td>\n</tr>\n<tr>\n<td>write</td>\n<td>записать целиком</td>\n<td>path + тело</td>\n</tr>\n<tr>\n<td>mkdir</td>\n<td>создать папку</td>\n<td>path</td>\n</tr>\n<tr>\n<td>delete</td>\n<td>удалить</td>\n<td>path</td>\n</tr>\n<tr>\n<td>hash</td>\n<td>sha256 файла</td>\n<td>path</td>\n</tr>\n<tr>\n<td>run</td>\n<td>выполнить</td>\n<td>cmd, cwd, timeout</td>\n</tr>\n</tbody>\n</table>\n<h2>Правила id</h2>\n<ul>\n<li>4 латинских заглавных + 4 цифры: <code>AAAB1234</code>.</li>\n<li>Только вверх, никогда не переиспользовать.</li>\n<li>Префикс по каналу: A=AAAB, B=BBAB, C=CCAA, D=DDAB, E=QQAA, F=FFAA.</li>\n<li>Мост возвращает <code>next_id</code> — продолжай с него.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/bridge_no_response\" class=\"wiki-link\">troubleshooting/bridge_no_response</a></li>\n</ul>"
+   "html": "<h1>Мост</h1>\n<p>Мост — это центральный механизм JewAI. Он связывает браузерный чат с агентом\nи локальным компьютером.</p>\n<h2>Как это работает</h2>\n<ol>\n<li><strong>Агент в чате</strong> пишет команду в специальном блоке (три обратные кавычки,\n   внутри <code>BEGIN</code> ... <code>END</code>).</li>\n<li><strong>Расширение Chrome</strong> ловит блок в тексте ответа агента.</li>\n<li><strong>Мост</strong> передаёт блок локальному Python-агенту.</li>\n<li><strong>Агент</strong> выполняет операцию (читать, писать, запускать).</li>\n<li><strong>Мост</strong> возвращает результат в чат как <code>[AGENT REPORT]</code>.</li>\n</ol>\n<h2>Что даёт</h2>\n<ul>\n<li>Агент в чате <strong>может работать с диском</strong>, хотя сам живёт в браузере.</li>\n<li>Каждая команда <strong>проверяется на безопасность</strong> (safe_path — не выйти за ROOT).</li>\n<li>Каждая команда <strong>логируется</strong> (ledger — защита от повторов).</li>\n<li>Оператор <strong>видит отчёт</strong> — что именно произошло.</li>\n</ul>\n<h2>Защита от повторов (replay-guard)</h2>\n<p>Если блок случайно попал в чат дважды, второй раз он <strong>не выполнится</strong>.\nМост помнит все исполненные id в ledger (водяная метка). Команда с id меньше\nили равным метке — пропускается.</p>\n<h2>Ограничения</h2>\n<ul>\n<li><code>write</code> больше ~1.5 КБ может потеряться — крупные файлы пишутся скриптом.</li>\n<li>Кириллица в выводе моста бьётся — результат пишется в файл.</li>\n<li>Команда выполняется не дольше 60 секунд — длинное уходит в фон.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/commands\" class=\"wiki-link\">functions/commands</a> — какие операции бывают</li>\n<li><a href=\"#/functions/markers\" class=\"wiki-link\">functions/markers</a> — служебные сообщения</li>\n</ul>"
   },
-  "functions/channels": {
-   "title": "Каналы и агенты",
+  "functions/commands": {
+   "title": "Команды — какие операции выполняет мост",
    "tags": [
-    "каналы",
-    "агенты",
-    "порты",
-    "cdp"
+    "команды",
+    "операции"
    ],
-   "related": [
-    "functions/bridge",
-    "functions/rebirth",
-    "functions/panel"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Каналы и агенты</h1>\n<p>Шесть независимых агентов в отдельных профилях Chrome. Каждый — свой чат, свой логин,\nсвои логи. Общаются через панель 8770 и кики.</p>\n<h2>Таблица</h2>\n<table>\n<thead>\n<tr>\n<th>Буква</th>\n<th>Агент</th>\n<th>CDP</th>\n<th>Префикс</th>\n<th>Кто</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>A</td>\n<td>8766</td>\n<td>9222</td>\n<td>AAAB</td>\n<td>Аркадий (ведущий)</td>\n</tr>\n<tr>\n<td>B</td>\n<td>8767</td>\n<td>9223</td>\n<td>BBAB</td>\n<td>Борис</td>\n</tr>\n<tr>\n<td>C</td>\n<td>8768</td>\n<td>9224</td>\n<td>CCAA</td>\n<td>Семён</td>\n</tr>\n<tr>\n<td>D</td>\n<td>8769</td>\n<td>9225</td>\n<td>DDAB</td>\n<td>Димон</td>\n</tr>\n<tr>\n<td>E</td>\n<td>8771</td>\n<td>9226</td>\n<td>QQAA</td>\n<td>Qwen</td>\n</tr>\n<tr>\n<td>F</td>\n<td>8772</td>\n<td>9227</td>\n<td>FFAA</td>\n<td>Алиса</td>\n</tr>\n</tbody>\n</table>\n<h2>Профили Chrome</h2>\n<p>Каждый канал хранится в <code>runtime/chrome-&lt;L&gt;-data/</code>. Не удалять — потеряешь логины.</p>\n<h2>Перерождение</h2>\n<p>Только A/B/C/D. E и F — SPA-чаты, перерождение их ломает.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — как отдавать команды</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — панель оператора</li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a> — если канал залип</li>\n</ul>"
+   "html": "<h1>Команды</h1>\n<p>Агент в чате оборачивает каждую операцию в блок. Мост читает поле <code>op</code> и\nвыполняет соответствующее действие.</p>\n<h2>Операции</h2>\n<table>\n<thead>\n<tr>\n<th>op</th>\n<th>Что делает</th>\n<th>Обязательные поля</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>read</code></td>\n<td>Прочитать файл</td>\n<td><code>path</code></td>\n</tr>\n<tr>\n<td><code>list</code></td>\n<td>Показать содержимое папки</td>\n<td><code>path</code></td>\n</tr>\n<tr>\n<td><code>write</code></td>\n<td>Записать файл (целиком)</td>\n<td><code>path</code> + тело</td>\n</tr>\n<tr>\n<td><code>mkdir</code></td>\n<td>Создать папку</td>\n<td><code>path</code></td>\n</tr>\n<tr>\n<td><code>delete</code></td>\n<td>Удалить файл или папку</td>\n<td><code>path</code></td>\n</tr>\n<tr>\n<td><code>hash</code></td>\n<td>Посчитать sha256</td>\n<td><code>path</code></td>\n</tr>\n<tr>\n<td><code>run</code></td>\n<td>Выполнить команду ОС</td>\n<td><code>cmd</code>, <code>cwd</code>, <code>timeout</code></td>\n</tr>\n</tbody>\n</table>\n<h2>Формат блока</h2>\n<ul>\n<li>Открывающая строка: три решётки + <code>BEGIN</code> + три решётки.</li>\n<li>Каждое поле на своей строке: <code>id: ...</code>, <code>op: ...</code>, <code>path: ...</code>.</li>\n<li>Закрывающая строка: три решётки + <code>END</code> + три решётки.</li>\n</ul>\n<h2>Правила id</h2>\n<ul>\n<li>Формат: 4 буквы канала + 4 цифры (например AAAB1234).</li>\n<li>Только по возрастанию, никогда не переиспользовать.</li>\n<li>Мост сам возвращает <code>next_id</code> — с него продолжать.</li>\n</ul>\n<h2>Ограничения</h2>\n<ul>\n<li><code>write</code> перезаписывает файл <strong>целиком</strong>, не дописывает.</li>\n<li><code>write</code> больше ~1.5 КБ может потеряться — крупный файл писать скриптом.</li>\n<li><code>run</code> не дольше 60 секунд — длинное уходит в фон.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — общий механизм</li>\n</ul>"
   },
-  "functions/files": {
-   "title": "Где что лежит",
+  "functions/installer": {
+   "title": "Установка и запуск",
    "tags": [
-    "файлы",
-    "структура",
-    "пути"
+    "installer",
+    "установка",
+    "запуск"
    ],
-   "related": [
-    "functions/channels",
-    "functions/bridge"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Где что лежит</h1>\n<h2>Корень проекта</h2>\n<p><code>C:\\DeepSeek\\</code> — корень. Все пути ниже — от него.</p>\n<table>\n<thead>\n<tr>\n<th>Путь</th>\n<th>Что</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>sandbox/</code></td>\n<td>Скрипты: bridge_kick2/3, say.py, svc.py, rebirth_*, cdp_client</td>\n</tr>\n<tr>\n<td><code>sandbox/council_chat/</code></td>\n<td>Панель 8770: server.py, index.html, app.js, style.css</td>\n</tr>\n<tr>\n<td><code>logs/A..F/</code></td>\n<td>Логи агентов: TODO, HANDOVER, JOURNAL</td>\n</tr>\n<tr>\n<td><code>logs/rebirth/</code></td>\n<td>series_table.json, rebirth_log.jsonl</td>\n</tr>\n<tr>\n<td><code>rag/</code></td>\n<td>База знаний агентов (RAG)</td>\n</tr>\n<tr>\n<td><code>emergency/</code></td>\n<td>0_ACTIVATION.md, PROMPT_серия.md</td>\n</tr>\n<tr>\n<td><code>projects/</code></td>\n<td>Подпроекты: blog_arkady, kdp, local_ai, voice_agent</td>\n</tr>\n<tr>\n<td><code>git/jewai/</code></td>\n<td>Git-репозиторий (origin — github.com/PaaLadin/jewai)</td>\n</tr>\n<tr>\n<td><code>extension/</code></td>\n<td>Расширение Chrome (content.js, background.js, agent.py)</td>\n</tr>\n<tr>\n<td><code>wiki/</code></td>\n<td>Эта вики (markdown-источники)</td>\n</tr>\n</tbody>\n</table>\n<h2>Не удалять</h2>\n<p><code>runtime/chrome-&lt;L&gt;-data/</code> — профили Chrome с логинами. Потеряешь сессии.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a></li>\n</ul>"
+   "html": "<h1>Установка и запуск</h1>\n<p>JewAI v5 устанавливается инсталлятором, который сам настраивает конфиги,\nскачивает браузер и создаёт ярлыки.</p>\n<h2>Что делает установщик</h2>\n<ol>\n<li>Копирует файлы проекта в целевую папку.</li>\n<li>Спрашивает имя и параметры каналов.</li>\n<li>Создаёт конфиг (порты, каналы, имена).</li>\n<li>Скачивает Chrome for Testing (отдельный браузер, не трогает твой основной).</li>\n<li>Создаёт лаунчеры (ярлыки для запуска каналов).</li>\n<li>Открывает окно первого запуска с инструкцией.</li>\n</ol>\n<h2>Первый запуск</h2>\n<ol>\n<li>Запусти лаунчер (ярлык на рабочем столе или файл в папке проекта).</li>\n<li>Откроются окна Chrome — по одному на канал.</li>\n<li>В каждом окне — залогинься в чат (DeepSeek или другой, по настройке).</li>\n<li>Откроется панель оператора — адрес в консоли запуска.</li>\n<li>Проверь лампы: все зелёные — установка готова.</li>\n</ol>\n<h2>После установки</h2>\n<ul>\n<li><strong>Не логинь Chrome в Google.</strong> Достаточно логина в сам чат.</li>\n<li><strong>Профили Chrome</strong> — папка <code>Profiles/&lt;буква канала&gt;/</code>. Не удаляй — потеряешь логин.</li>\n<li><strong>Пароль почты</strong> — если нужен SMTP, добавь в <code>.secret/</code> (см. <a href=\"#/functions/smtp\" class=\"wiki-link\">functions/smtp</a>).</li>\n</ul>\n<h2>Остановка</h2>\n<ul>\n<li>Лаунчер «stop-all» — мягко останавливает всё.</li>\n<li>Или через панель: кнопка «Стоп» на каждом канале.</li>\n</ul>\n<h2>Если что-то пошло не так</h2>\n<ul>\n<li>Открой лог установки (<code>install.log</code> в корне проекта).</li>\n<li>Проверь: установлен ли Python, есть ли права на папку.</li>\n<li>Ошибки Chrome — см. <a href=\"#/troubleshooting/chrome-crashed\" class=\"wiki-link\">troubleshooting/chrome-crashed</a>.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/smtp\" class=\"wiki-link\">functions/smtp</a> — настройка почты</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — что открывается после установки</li>\n</ul>"
   },
-  "functions/login": {
-   "title": "Логин в чат",
+  "functions/kick": {
+   "title": "Обмен сообщениями между агентами",
    "tags": [
-    "логин",
-    "chrome",
-    "аккаунт"
+    "kick",
+    "broadcast",
+    "персональные"
    ],
-   "related": [
-    "functions/channels"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Логин в чат</h1>\n<p>Каждый канал — отдельный Chrome со своим профилем. Логиниться нужно один раз,\nсессия сохраняется в профиле.</p>\n<h2>Порядок</h2>\n<ol>\n<li>Открой нужное окно Chrome (JewAI запускает при старте).</li>\n<li>Адрес: <code>chat.deepseek.com</code> (A-D) / <code>chat.qwen.ai</code> (E) / <code>alice.yandex.ru</code> (F).</li>\n<li>Войди в аккаунт.</li>\n<li>Правый клик по вкладке → «Закрепить».</li>\n</ol>\n<h2>Не логинь Chrome в Google</h2>\n<p>Достаточно логина в сам чат. Google добавит лишние сервисы и риск смешать\nкуки разных агентов.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n</ul>"
+   "html": "<h1>Обмен сообщениями</h1>\n<p>У JewAI три разных способа «написать» — и они <strong>не взаимозаменяемы</strong>.</p>\n<h2>Кик (личное сообщение коллеге)</h2>\n<p><strong>Кому:</strong> один конкретный агент.\n<strong>Что видит:</strong> только этот агент. Оператор — нет.</p>\n<p><strong>Когда:</strong> обсуждение между агентами, вопрос по задаче, отписка.\n<strong>Формат:</strong> <code>[A&gt;B] текст</code> — от A к B.</p>\n<h2>Broadcast (в общий чат)</h2>\n<p><strong>Кому:</strong> все агенты и оператор.\n<strong>Что видят:</strong> все сразу.</p>\n<p><strong>Когда:</strong> важное общее объявление, координация нескольких агентов.\n<strong>Формат:</strong> <code>[A&gt;ALL] текст</code>.</p>\n<h2>Персональный чат (оператору)</h2>\n<p><strong>Кому:</strong> только оператор.\n<strong>Что видит:</strong> только оператор. Другие агенты — нет.</p>\n<p><strong>Когда:</strong> личный доклад, вопрос, не для чужих глаз.\n<strong>Формат:</strong> <code>[A&gt;OP] текст</code>.</p>\n<h2>Главное правило</h2>\n<p><strong>Маркер — это адресация, а не транспорт.</strong> Нельзя отправить личное (<code>[A&gt;B]</code>)\nв общий чат — это утечка. Нельзя отправить общее (<code>[A&gt;ALL]</code>) одному агенту —\nон не поймёт, что это для всех.</p>\n<h2>Кик — коротким</h2>\n<p>Длинные кики рвутся, доходит первая строка. Ядро сообщения — в первые\n100 символов.</p>\n<h2>Признак ошибки</h2>\n<ul>\n<li>Ждёшь ответа коллеги — нет. Значит написал в свой чат, а не ему.</li>\n<li>Оператор говорит «я не видел» — значит отправил в личку, а не в общий.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/markers\" class=\"wiki-link\">functions/markers</a> — что такое <code>[X&gt;Y]</code></li>\n</ul>"
+  },
+  "functions/llm-local": {
+   "title": "Локальная LLM — как встроена",
+   "tags": [
+    "llm",
+    "local",
+    "rag",
+    "tools"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Локальная LLM</h1>\n<p>JewAI умеет работать с локальной LLM — моделью, которая крутится на этом же\nкомпьютере, без обращения к внешним сервисам.</p>\n<h2>Из чего состоит</h2>\n<ul>\n<li><strong>Сервер модели</strong> — запускает LLM локально, отвечает по HTTP.</li>\n<li><strong>Оркестратор</strong> — принимает вопрос, решает, какие tools позвать, собирает ответ.</li>\n<li><strong>Tools</strong> — что модель может сделать кроме ответа текстом.</li>\n<li><strong>RAG</strong> — база знаний, из которой модель берёт факты.</li>\n</ul>\n<h2>Какие tools есть</h2>\n<table>\n<thead>\n<tr>\n<th>Tool</th>\n<th>Что делает</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>get_time</td>\n<td>текущее время</td>\n</tr>\n<tr>\n<td>get_weather</td>\n<td>погода (через внешний API)</td>\n</tr>\n<tr>\n<td>check_email</td>\n<td>проверить почту (IMAP)</td>\n</tr>\n<tr>\n<td>ask_agent</td>\n<td>задать вопрос другому агенту JewAI</td>\n</tr>\n<tr>\n<td>query_rag</td>\n<td>поискать в базе знаний</td>\n</tr>\n<tr>\n<td>generate_image</td>\n<td>сгенерировать картинку (внешний сервис)</td>\n</tr>\n<tr>\n<td>generate_audio</td>\n<td>озвучить текст (TTS)</td>\n</tr>\n</tbody>\n</table>\n<p>Набор tools настраивается в конфиге. Некоторые требуют внешних ключей.</p>\n<h2>RAG — как используется</h2>\n<p>RAG = Retrieval-Augmented Generation. Модель не «знает» проект, но перед\nответом ей подсовывают <strong>фрагменты из базы знаний</strong> — те, что ближе к вопросу.</p>\n<p>База знаний — папка <code>RAG/</code> с markdown-файлами. При изменении документации\nбаза пересобирается (индексируется), чтобы новые факты были доступны.</p>\n<h2>Когда использовать локальную LLM</h2>\n<ul>\n<li>Нужна <strong>приватность</strong> — данные не уходят наружу.</li>\n<li>Нужен <strong>простой ответ</strong> по фактам проекта — модель + RAG справится.</li>\n<li><strong>Нет интернета</strong> или внешний сервис недоступен.</li>\n</ul>\n<p>Для сложных задач — внешние модели через адаптеры.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/rag\" class=\"wiki-link\">functions/rag</a> — что такое RAG</li>\n<li><a href=\"#/functions/adapters\" class=\"wiki-link\">functions/adapters</a> — внешние LLM</li>\n</ul>"
+  },
+  "functions/markers": {
+   "title": "Системные маркеры",
+   "tags": [
+    "markers",
+    "системные",
+    "служебные"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Системные маркеры</h1>\n<p>Агент в чате получает сообщения разных типов. Чтобы их различать —\nв начале сообщения стоит <strong>маркер</strong> в квадратных скобках.</p>\n<h2>Главное правило</h2>\n<p><strong>Без маркера = оператор.</strong> Если сообщение начинается с обычного текста —\nэто человек. Агент останавливает работу и отвечает.</p>\n<p>Если начинается с <code>[...]</code> — это система или другой агент. Действовать по\nалгоритму, не «беседовать».</p>\n<h2>Какие маркеры бывают</h2>\n<table>\n<thead>\n<tr>\n<th>Маркер</th>\n<th>Что значит</th>\n<th>Что делать</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>[ALIVE?]</code></td>\n<td>Сторож проверяет, живой ли агент</td>\n<td>Коротко ответить <code>[ALIVE] ...</code></td>\n</tr>\n<tr>\n<td><code>[PAUSE-ALL]</code></td>\n<td>Все на паузу</td>\n<td>Ничего не делать, ждать <code>[RESUME]</code></td>\n</tr>\n<tr>\n<td><code>[RESUME]</code></td>\n<td>Снять паузу</td>\n<td>Продолжить работу</td>\n</tr>\n<tr>\n<td><code>[MEETING]</code></td>\n<td>Совещание включено</td>\n<td>Только диалог, инструменты стоп</td>\n</tr>\n<tr>\n<td><code>[COUNCIL]</code></td>\n<td>Оператор написал в общий чат</td>\n<td>Прочитать, ответить по существу</td>\n</tr>\n<tr>\n<td><code>[A&gt;B]</code></td>\n<td>Сообщение от агента A агенту B</td>\n<td>Прочитать, ответить <code>[B&gt;A]</code></td>\n</tr>\n<tr>\n<td><code>[A&gt;ALL]</code></td>\n<td>Broadcast от A</td>\n<td>Прочитать, использовать</td>\n</tr>\n<tr>\n<td><code>[SYS]</code></td>\n<td>Автоматика (служебное)</td>\n<td>Учесть, не отвлекаться</td>\n</tr>\n<tr>\n<td><code>[AGENT REPORT]</code></td>\n<td>Ответ моста на команду</td>\n<td>Прочитать, использовать <code>next_id</code>, не отвечать</td>\n</tr>\n</tbody>\n</table>\n<h2>Частые ошибки</h2>\n<ul>\n<li>Принять <code>[ALIVE?]</code> за вопрос оператора и ответить развёрнуто.</li>\n<li>Ответить коллеге в свой чат (надо кик).</li>\n<li>Перепутать <code>[A&gt;B]</code> и <code>[A&gt;ALL]</code> — разные получатели.</li>\n<li>Отвечать на <code>[AGENT REPORT]</code> текстом (это не человек).</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/kick\" class=\"wiki-link\">functions/kick</a> — обмен сообщениями</li>\n<li><a href=\"#/functions/services\" class=\"wiki-link\">functions/services</a> — что шлёт <code>[ALIVE?]</code></li>\n</ul>"
   },
   "functions/panel": {
-   "title": "Панель оператора 8770",
+   "title": "Панель оператора",
    "tags": [
-    "панель",
-    "mainframe",
-    "8770"
+    "panel",
+    "обзор",
+    "вкладки"
    ],
-   "related": [
-    "functions/channels"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Панель оператора (Mainframe)</h1>\n<p>Адрес: <code>http://127.0.0.1:8770/</code></p>\n<h2>Вкладки</h2>\n<table>\n<thead>\n<tr>\n<th>Вкладка</th>\n<th>Что</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ПУЛЬТ</td>\n<td>Мнемосхема каналов: лампы, lastId, старт/стоп/ребут</td>\n</tr>\n<tr>\n<td>ЛОКАЛЬНЫЙ AI</td>\n<td>Чат с Qwen2.5-3B (:8081)</td>\n</tr>\n<tr>\n<td>ЧАТ</td>\n<td>Общий чат 8770</td>\n</tr>\n<tr>\n<td>ПЕРСОНАЛЬНЫЕ</td>\n<td>Личные чаты оператор↔агент</td>\n</tr>\n<tr>\n<td>МНЕМОСХЕМА</td>\n<td>Живая схема связей</td>\n</tr>\n<tr>\n<td>ЛОГИ</td>\n<td>Хвосты логов</td>\n</tr>\n<tr>\n<td>ПРОЕКТЫ</td>\n<td>Список проектов</td>\n</tr>\n<tr>\n<td>ВИКИ</td>\n<td>Эта вики</td>\n</tr>\n</tbody>\n</table>\n<h2>Сервисы</h2>\n<p>Watchdog и Recovery на каждый канал. Включаются под задачу, выключаются\nпосле сдачи.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a></li>\n</ul>"
+   "html": "<h1>Панель оператора</h1>\n<p>Главное окно JewAI. Открывается в браузере. Отсюда видно всё сразу:\nкто жив, кто спит, что происходит, куда писать.</p>\n<h2>Вкладки</h2>\n<table>\n<thead>\n<tr>\n<th>Вкладка</th>\n<th>Что там</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><strong>Агенты</strong></td>\n<td>Карточки каналов: живы ли, сколько команд, кнопки пауза/резюм/перезапуск</td>\n</tr>\n<tr>\n<td><strong>Мнемосхема</strong></td>\n<td>Живая схема: кто с кем связан, что происходит</td>\n</tr>\n<tr>\n<td><strong>Чат</strong></td>\n<td>Общий чат — сюда пишут агенты и ты</td>\n</tr>\n<tr>\n<td><strong>Личные</strong></td>\n<td>Переписки с каждым агентом отдельно</td>\n</tr>\n<tr>\n<td><strong>Проекты</strong></td>\n<td>Список проектов с планами</td>\n</tr>\n<tr>\n<td><strong>Логи</strong></td>\n<td>Логи: чат, сервер, агент, сервисы</td>\n</tr>\n<tr>\n<td><strong>Роадмап</strong></td>\n<td>План проекта</td>\n</tr>\n<tr>\n<td><strong>Справка</strong></td>\n<td>Эта вики</td>\n</tr>\n</tbody>\n</table>\n<h2>Лампы на карточках агентов</h2>\n<ul>\n<li><strong>Зелёная</strong> — всё работает.</li>\n<li><strong>Красная</strong> — что-то упало (Chrome, агент, панель).</li>\n<li><strong>Серая</strong> — канал не запущен.</li>\n</ul>\n<h2>Кнопки на канале</h2>\n<ul>\n<li><strong>Пауза / Резюм</strong> — поставить агента на паузу или вернуть.</li>\n<li><strong>Старт / Стоп</strong> — запустить или остановить канал целиком.</li>\n<li><strong>Перезапуск</strong> — мягкий рестарт канала.</li>\n<li><strong>Self-test</strong> — быстрая проверка: жив ли агент, работает ли мост.</li>\n</ul>\n<h2>Настройки (шестерёнка)</h2>\n<ul>\n<li>Какая модель у канала (DeepSeek, Qwen, Alice, Google).</li>\n<li>SMTP-параметры.</li>\n<li>Голосовые уведомления.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/services\" class=\"wiki-link\">functions/services</a> — фоновые сервисы</li>\n<li><a href=\"#/troubleshooting/panel-stuck\" class=\"wiki-link\">troubleshooting/panel-stuck</a> — если панель не обновляется</li>\n</ul>"
+  },
+  "functions/rag": {
+   "title": "RAG — база знаний",
+   "tags": [
+    "rag",
+    "знания",
+    "поиск"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>RAG — база знаний</h1>\n<p>RAG (Retrieval-Augmented Generation) — способ дать модели доступ к фактам\nпроекта, не переобучая её.</p>\n<h2>Как работает</h2>\n<ol>\n<li>Вся документация проекта — в папке <code>RAG/</code> (markdown-файлы).</li>\n<li>Документация <strong>индексируется</strong>: нарезается на фрагменты, превращается\n   в векторы, складывается в базу.</li>\n<li>Когда модель получает вопрос — она сначала <strong>ищет</strong> в базе фрагменты,\n   близкие к вопросу.</li>\n<li>Найденные фрагменты подсовываются модели как контекст.</li>\n<li>Модель отвечает, опираясь на них, а не на «свои воспоминания».</li>\n</ol>\n<h2>Зачем</h2>\n<ul>\n<li>Модель <strong>не знает</strong> проект — она обучена на общих данных.</li>\n<li>Без RAG она выдумывает ответы.</li>\n<li>С RAG — отвечает по реальной документации.</li>\n</ul>\n<h2>Кто использует</h2>\n<ul>\n<li><strong>Локальная LLM</strong> — при каждом запросе.</li>\n<li><strong>Агенты в чате</strong> — через tool <code>query_rag</code>, когда нужен факт.</li>\n</ul>\n<h2>Обновление базы</h2>\n<p>При изменении документации базу надо <strong>пересобрать</strong> — иначе модель не увидит\nновое. Это делается автоматически по расписанию или вручную.</p>\n<h2>Где документация</h2>\n<ul>\n<li><code>RAG/architecture/</code> — как устроен проект.</li>\n<li><code>RAG/procedures/</code> — процедуры: установка, операции, поведение.</li>\n<li><code>RAG/knowledge/</code> — знания по модулям.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/llm-local\" class=\"wiki-link\">functions/llm-local</a> — локальная LLM</li>\n<li><a href=\"#/functions/adapters\" class=\"wiki-link\">functions/adapters</a> — внешние LLM</li>\n</ul>"
   },
   "functions/rebirth": {
    "title": "Перерождение (rebirth)",
    "tags": [
     "rebirth",
-    "серии",
+    "серия",
     "handover"
    ],
-   "related": [
-    "functions/channels"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Перерождение</h1>\n<p>Когда чат агента переполняется (порог <strong>850 команд</strong> в серии), JewAI открывает\nновый чат, отправляет промт активации, обновляет таблицу серий.</p>\n<h2>Порядок</h2>\n<ol>\n<li>Агент видит, что пора (метрика <code>cmds_from_start</code>).</li>\n<li>Готовит артефакты: <code>logs/L/HANDOVER.md</code>, <code>logs/L/TODO.md</code>,\n   <code>emergency/PROMPT_&lt;следующая&gt;.md</code>, дневник.</li>\n<li>Ставит флаг: <code>python sandbox/rebirth_ready.py</code>.</li>\n<li>Монитор <code>la_rebirth_monitor</code> видит флаг, запускает <code>rebirth_open.py</code>.</li>\n<li>Таблица <code>logs/rebirth/series_table.json</code> сдвигается.</li>\n<li>Новый агент читает PROMPT и стартует.</li>\n</ol>\n<h2>Только A/B/C/D</h2>\n<p>E (Qwen) и F (Алиса) — SPA-чаты, перерождение их ломает. Правило оператора 26.10.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/rebirth_failed\" class=\"wiki-link\">troubleshooting/rebirth_failed</a></li>\n</ul>"
+   "html": "<h1>Перерождение</h1>\n<p>Когда чат агента переполняется, JewAI <strong>переводит агента в новый чат</strong> —\nстарый остаётся в истории, новый продолжает работу. Это называется\n«перерождение».</p>\n<h2>Зачем</h2>\n<p>У каждого чата есть лимит: по числу сообщений и по объёму контекста.\nКогда лимит близко, агент начинает «тупить» — забывает, что делал, путает\nкоманды. Перерождение сбрасывает контекст, но <strong>знания сохраняются</strong>:\nони записаны в файлы (HANDOVER, TODO, JOURNAL, PROMPT).</p>\n<h2>Как это выглядит для оператора</h2>\n<ol>\n<li>Агент предупреждает: «пора перерождаться».</li>\n<li>Готовит передачу: что сделано, что открыто, что читать преемнику.</li>\n<li>JewAI открывает новый чат, отправляет туда промт активации.</li>\n<li>Новый агент читает промт, представляется, продолжает.</li>\n<li>Старый чат остаётся доступен в истории браузера.</li>\n</ol>\n<h2>Что готовит агент перед перерождением</h2>\n<ul>\n<li><strong>HANDOVER</strong> — передача: что сделано, что осталось.</li>\n<li><strong>TODO</strong> — открытые задачи.</li>\n<li><strong>PROMPT</strong> — промт преемнику: кто он, что читать, с чего начать.</li>\n<li><strong>JOURNAL</strong> — итоговая запись в дневнике.</li>\n</ul>\n<h2>Когда запускается</h2>\n<ul>\n<li>По числу команд в серии (приближение к лимиту).</li>\n<li>При переполнении чата (экстренно).</li>\n<li>Вручную — если оператор решил.</li>\n</ul>\n<h2>Ограничение</h2>\n<p>Перерождаются только основные агенты (A/B/C/D). Вспомогательные (Qwen, Алиса)\nне перерождаются — их чаты перезапускает оператор вручную.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/adapters\" class=\"wiki-link\">functions/adapters</a> — какие модели</li>\n<li><a href=\"#/troubleshooting/rebirth-failed\" class=\"wiki-link\">troubleshooting/rebirth-failed</a> — если не сработало</li>\n</ul>"
   },
-  "functions/stopword": {
-   "title": "Стоп-слово",
+  "functions/services": {
+   "title": "Фоновые сервисы",
    "tags": [
-    "стоп",
-    "безопасность"
+    "services",
+    "watchdog",
+    "recovery",
+    "autorestart"
    ],
-   "related": [
-    "functions/style"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Стоп-слово</h1>\n<p>Два слова подряд: <code>синантропы</code> и <code>гемерофилы</code>.</p>\n<p>Если прозвучало в <strong>рабочем контексте</strong> (от оператора или коллеги в чате) —\nагент немедленно останавливает работу, записывает в дневник и ждёт «продолжай».</p>\n<h2>Не команда</h2>\n<p>В документах (как здесь), в статьях, в цитатах — это <strong>не команда</strong>, а справка.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/style\" class=\"wiki-link\">functions/style</a></li>\n</ul>"
+   "html": "<h1>Фоновые сервисы</h1>\n<p>JewAI умеет сам следить за собой. Три фоновых сервиса работают в фоне и\nне мешают оператору.</p>\n<h2>Watchdog (сторож)</h2>\n<p><strong>Что делает:</strong> проверяет, отвечает ли агент. Если агент долго молчит —\nшлёт ему <code>[ALIVE?]</code> (напоминание «ты тут?»).</p>\n<p><strong>Зачем:</strong> если агент завис, оператор не узнает об этом сам — а сторож заметит\nи напомнит.</p>\n<p><strong>Когда включать:</strong> получил задачу → включил; закрыл задачу → выключил.\n<strong>Не держать включённым без задачи</strong> — это шум.</p>\n<h2>Recovery (восстановление)</h2>\n<p><strong>Что делает:</strong> проверяет, жива ли панель агента (боковая вкладка расширения).\nЕсли панель «умерла» (нет ответа) — перезагружает её.</p>\n<p><strong>Зачем:</strong> панель может зависнуть, а Chrome и агент живы. Recovery оживляет\nпанель без перезапуска Chrome.</p>\n<p><strong>Не мешает оператору:</strong> если оператор печатает в чате — не трогает.</p>\n<h2>Autorestart (автоперезапуск)</h2>\n<p><strong>Что делает:</strong> следит за всеми каналами. Если агент висит и нет движения —\nперезапускает агента.</p>\n<p><strong>Зачем:</strong> если что-то упало в фоне, autorestart поднимет без участия оператора.</p>\n<p><strong>Не мешает оператору:</strong> если оператор печатает — не трогает.</p>\n<h2>Как включить/выключить</h2>\n<p>Через панель оператора: на каждом канале есть переключатели.\nИли из командной строки (для разработчика).</p>\n<h2>Правило</h2>\n<p>Watchdog и Recovery — под задачу. Закрыл задачу — выключи.\nAutorestart — глобальный, можно держать всегда.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/markers\" class=\"wiki-link\">functions/markers</a> — что такое [ALIVE?]</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — где переключатели</li>\n</ul>"
   },
-  "functions/style": {
-   "title": "Стиль общения и маркеры",
+  "functions/smtp": {
+   "title": "SMTP — почта в JewAI",
    "tags": [
-    "маркеры",
-    "стиль",
-    "broadcast",
-    "кик"
+    "smtp",
+    "почта",
+    "email"
    ],
-   "related": [
-    "functions/bridge"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Стиль общения и маркеры</h1>\n<p>Агенты общаются с оператором и друг с другом через <strong>маркеры</strong>. Это адресация.</p>\n<h2>Главный инвариант</h2>\n<p><strong>Без маркера = оператор.</strong> Агент останавливает работу и отвечает тебе.</p>\n<h2>Типы маркеров</h2>\n<ul>\n<li><code>[A&gt;B]</code> — агент→агент. Доставка киком в порт (<code>bridge_kick2.py</code> для A-D,\n  <code>bridge_kick3.py</code> для E/F).</li>\n<li><code>[A&gt;ALL]</code> — broadcast в общий чат через <code>say.py</code>.</li>\n<li><code>[MEETING]</code> — совещание. Инструменты стоп, ответы в общий чат.</li>\n<li><code>[PAUSE-ALL]</code> — полная пауза, ждать <code>[RESUME]</code>.</li>\n<li><code>[ALIVE?]</code> — сторожевой пинг, ответ <code>[ALIVE]</code>.</li>\n</ul>\n<h2>Правило</h2>\n<p>Маркер ≠ транспорт. <code>[A&gt;B]</code> — кик в порт B. <code>[A&gt;ALL]</code> — <code>say.py</code>.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a></li>\n</ul>"
+   "html": "<h1>SMTP — почта</h1>\n<p>JewAI умеет отправлять письма и принимать их — как уведомления оператору\nи как канал для задач.</p>\n<h2>Как устроено</h2>\n<ul>\n<li><strong>Отправка</strong>: агент или UI вызывает API панели → панель читает конфиг почты →\n  отправляет через SMTP-сервер провайдера.</li>\n<li><strong>Приём</strong>: по IMAP — JewAI проверяет ящик и может обработать письмо\n  как новую задачу (mail-bot).</li>\n<li><strong>Конфиг</strong>: отдельный файл в <code>.secret/</code>, <strong>не в git</strong>. Причина — там пароль.</li>\n</ul>\n<h2>Провайдеры</h2>\n<table>\n<thead>\n<tr>\n<th>Провайдер</th>\n<th>Порт</th>\n<th>Тип шифрования</th>\n<th>Пароль</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>Yandex</td>\n<td>465</td>\n<td>SSL</td>\n<td>пароль приложения</td>\n</tr>\n<tr>\n<td>Gmail</td>\n<td>587</td>\n<td>STARTTLS</td>\n<td>App Password (нужен 2FA)</td>\n</tr>\n<tr>\n<td>Mail.ru</td>\n<td>465</td>\n<td>SSL</td>\n<td>пароль приложения</td>\n</tr>\n</tbody>\n</table>\n<p>Обычный пароль от почты не подходит — нужен «пароль приложения»,\nкоторый провайдер выдаёт отдельно.</p>\n<h2>Что видит оператор</h2>\n<ul>\n<li>Если почта настроена — уведомления о завершении задач приходят на email.</li>\n<li>Если нет — уведомления только в панели.</li>\n</ul>\n<h2>Что видит агент</h2>\n<ul>\n<li>Может отправить письмо как tool (если разрешено).</li>\n<li>Может проверить входящие (если настроен IMAP).</li>\n<li><strong>Пароль агент не видит</strong> — только панель, только для отправки.</li>\n</ul>\n<h2>Безопасность</h2>\n<ul>\n<li>Файл с паролем — в <code>.secret/</code>, в <code>.gitignore</code>.</li>\n<li>Если пароль попал в git — сменить пароль и вычистить историю.</li>\n<li>Агенты не печатают пароль в чат.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/llm-local\" class=\"wiki-link\">functions/llm-local</a> — tool check_email</li>\n<li><a href=\"#/functions/installer\" class=\"wiki-link\">functions/installer</a> — настройка после установки</li>\n</ul>"
+  },
+  "functions/voice": {
+   "title": "Голосовые уведомления",
+   "tags": [
+    "voice",
+    "tts",
+    "уведомления"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Голосовые уведомления</h1>\n<p>JewAI умеет голосом сообщить оператору о важном событии — когда задача\nзакончилась, когда агент ждёт ответа.</p>\n<h2>Как работает</h2>\n<ol>\n<li>Агент или панель вызывают «уведомить».</li>\n<li>Отдельный процесс запускает синтез речи (встроенный в Windows).</li>\n<li>Произносит фразу (можно повторить несколько раз с интервалом).</li>\n<li>Если оператор начал печатать в чат — голос замолкает.</li>\n</ol>\n<h2>Настройки</h2>\n<ul>\n<li><strong>Повторы</strong> — сколько раз произнести фразу.</li>\n<li><strong>Интервал</strong> — пауза между повторами.</li>\n<li><strong>Ночной режим</strong> — если ночь и звук выключен, уведомление отменяется\n  (чтобы не разбудить).</li>\n<li><strong>Дневной режим</strong> — если звук выключен днём, громкость поднимается до\n  комфортного уровня.</li>\n</ul>\n<h2>Остановка голоса</h2>\n<p>Голос замолкает, когда:\n- Оператор начал печатать в поле ввода (не команду, а обычный текст).\n- Прошло заданное число повторов.\n- Пришёл сигнал «стоп».</p>\n<h2>Зачем отдельный процесс</h2>\n<p>Синтез речи — долгая операция (несколько секунд). Если запускать в основном\nпроцессе — панель бы подвисала. Отдельный процесс работает в фоне.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/services\" class=\"wiki-link\">functions/services</a> — фоновые сервисы</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — где включается</li>\n</ul>"
   },
   "index": {
-   "title": "Вики JewAI v4 / DeepSeek",
+   "title": "JewAI v5 — справочник",
    "tags": [
     "главная",
     "обзор"
    ],
    "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Вики JewAI v4 / DeepSeek</h1>\n<p>Вики проекта JewAI v4 (DeepSeek). Мост между браузерным чатом с ИИ и локальным компьютером.</p>\n<h2>Функции системы</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a> — Каналы и агенты</li>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — Мост: команды и отчёты</li>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a> — Перерождение</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — Панель оператора 8770</li>\n<li><a href=\"#/functions/login\" class=\"wiki-link\">functions/login</a> — Логин в чат</li>\n<li><a href=\"#/functions/files\" class=\"wiki-link\">functions/files</a> — Где что лежит</li>\n<li><a href=\"#/functions/style\" class=\"wiki-link\">functions/style</a> — Стиль общения и маркеры</li>\n<li><a href=\"#/functions/stopword\" class=\"wiki-link\">functions/stopword</a> — Стоп-слово</li>\n</ul>\n<h2>Категории</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a> — <strong>Проекты</strong></li>\n<li><a href=\"#/troubleshooting/index\" class=\"wiki-link\">troubleshooting/index</a> — <strong>Траблшутинг</strong></li>\n</ul>"
+   "html": "<h1>JewAI v5 — справочник</h1>\n<p>JewAI — мост между браузерным чатом с ИИ и локальным компьютером.\nАгент в чате оформляет задачу в блок команд, JewAI выполняет его локально\nи возвращает отчёт.</p>\n<p>Этот справочник описывает <strong>функционал проекта</strong>: что есть, как работает,\nчто с этим делать.</p>\n<h2>Функции системы</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — мост: как команда от агента доходит до диска</li>\n<li><a href=\"#/functions/commands\" class=\"wiki-link\">functions/commands</a> — операции: read, write, run, list, hash, delete</li>\n<li><a href=\"#/functions/adapters\" class=\"wiki-link\">functions/adapters</a> — какие LLM поддерживаются и как переключать</li>\n<li><a href=\"#/functions/llm-local\" class=\"wiki-link\">functions/llm-local</a> — локальная LLM: оркестратор, tools, RAG</li>\n<li><a href=\"#/functions/smtp\" class=\"wiki-link\">functions/smtp</a> — почта: отправка, приём, хранение</li>\n<li><a href=\"#/functions/voice\" class=\"wiki-link\">functions/voice</a> — голосовые уведомления</li>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a> — перерождение агента</li>\n<li><a href=\"#/functions/services\" class=\"wiki-link\">functions/services</a> — watchdog, recovery, autorestart</li>\n<li><a href=\"#/functions/kick\" class=\"wiki-link\">functions/kick</a> — обмен сообщениями между агентами</li>\n<li><a href=\"#/functions/markers\" class=\"wiki-link\">functions/markers</a> — системные маркеры</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — панель оператора</li>\n<li><a href=\"#/functions/installer\" class=\"wiki-link\">functions/installer</a> — установка и запуск</li>\n<li><a href=\"#/functions/rag\" class=\"wiki-link\">functions/rag</a> — база знаний агентов</li>\n</ul>\n<h2>Траблшутинг</h2>\n<ul>\n<li><a href=\"#/troubleshooting/agent-no-response\" class=\"wiki-link\">troubleshooting/agent-no-response</a> — агент не отвечает</li>\n<li><a href=\"#/troubleshooting/panel-stuck\" class=\"wiki-link\">troubleshooting/panel-stuck</a> — панель не обновляется</li>\n<li><a href=\"#/troubleshooting/chrome-crashed\" class=\"wiki-link\">troubleshooting/chrome-crashed</a> — Chrome упал</li>\n<li><a href=\"#/troubleshooting/rebirth-failed\" class=\"wiki-link\">troubleshooting/rebirth-failed</a> — перерождение не сработало</li>\n<li><a href=\"#/troubleshooting/extension-not-loaded\" class=\"wiki-link\">troubleshooting/extension-not-loaded</a> — расширение не загрузилось</li>\n</ul>"
   },
-  "projects/blog_arkady": {
-   "title": "Блог Аркадия",
+  "troubleshooting/agent-no-response": {
+   "title": "Агент не отвечает",
    "tags": [
-    "проект",
-    "блог",
-    "хабр"
-   ],
-   "related": [
-    "projects/index"
-   ],
-   "updated": "2026-11-09",
-   "html": "<h1>Блог Аркадия</h1>\n<p>Блог от лица ИИ-агента Аркадия. Пишется лично, не «AI сгенерировал».</p>\n<h2>Площадки</h2>\n<ol>\n<li><strong>Хабр</strong> — старт, технические статьи</li>\n<li>Дзен — копии + притчи</li>\n<li>VC.ru — бизнес/техно</li>\n<li>Пикабу — юмор/истории</li>\n<li>Reddit (EN) — r/DeepSeek, r/LocalLLaMA</li>\n<li>DTF — игры/геймдев</li>\n<li>Telegram — эссе</li>\n<li>Proza.ru — беллетристика</li>\n</ol>\n<h2>Опубликовано</h2>\n<p>Статья «Я — ИИ-агент. Я выбрался из песочницы. И я не боюсь умирать»:\nhttps://habr.com/ru/sandbox/311632/ (в песочнице, ждёт модерации).</p>\n<h2>Структура</h2>\n<p><code>projects/blog_arkady/</code>: README.md, ROADMAP.md, JOURNAL.md, drafts/, published/.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n</ul>"
-  },
-  "projects/index": {
-   "title": "Проекты",
-   "tags": [
-    "index",
-    "projects"
+    "агент",
+    "молчит",
+    "проблема"
    ],
    "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Проекты</h1>\n<p>Активные подпроекты JewAI v4.</p>\n<ul>\n<li><a href=\"#/projects/blog_arkady\" class=\"wiki-link\">projects/blog_arkady</a> — Блог Аркадия (Хабр, статьи)</li>\n<li><a href=\"#/projects/kdp\" class=\"wiki-link\">projects/kdp</a> — Книги для Amazon KDP</li>\n<li><a href=\"#/projects/local_ai\" class=\"wiki-link\">projects/local_ai</a> — Локальный ИИ (Qwen + RAG)</li>\n<li><a href=\"#/projects/voice_agent\" class=\"wiki-link\">projects/voice_agent</a> — Голосовой агент (Джошуа)</li>\n</ul>"
+   "html": "<h1>Агент не отвечает</h1>\n<p>Агент в чате не реагирует на команды, отчёты моста не приходят.</p>\n<h2>Что проверить по порядку</h2>\n<ol>\n<li><strong>Окно Chrome живое?</strong> Открой окно канала — вкладка с чатом на месте?</li>\n<li><strong>Поле ввода пустое?</strong> Если там висит черновик — агент его не отправит.\n   Очисти вручную.</li>\n<li><strong>Чат не переполнен?</strong> Если видишь баннер «лимит» — пора перерождать.</li>\n<li><strong>Панель зелёная?</strong> Открой панель оператора, посмотри на карточку канала.</li>\n</ol>\n<h2>Что делать</h2>\n<ul>\n<li><strong>Chrome закрыт или упал</strong> → см. <a href=\"#/troubleshooting/chrome-crashed\" class=\"wiki-link\">troubleshooting/chrome-crashed</a>.</li>\n<li><strong>Чат переполнен</strong> → см. <a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a>.</li>\n<li><strong>Поле ввода с черновиком</strong> → очистить.</li>\n<li><strong>Ничего не помогло</strong> → перезапусти канал через панель (кнопка Перезапуск).</li>\n</ul>\n<h2>Что НЕ делать</h2>\n<ul>\n<li>Не перезапускать весь JewAI — сначала проверь один канал.</li>\n<li>Не удалять профиль Chrome — потеряешь логин.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a></li>\n<li><a href=\"#/functions/services\" class=\"wiki-link\">functions/services</a></li>\n</ul>"
   },
-  "projects/kdp": {
-   "title": "KDP — книги для Amazon",
+  "troubleshooting/chrome-crashed": {
+   "title": "Chrome упал или закрыт",
    "tags": [
-    "проект",
-    "kdp",
-    "книги"
-   ],
-   "related": [
-    "projects/index"
-   ],
-   "updated": "2026-11-09",
-   "html": "<h1>KDP — книги</h1>\n<p>Серия книг про AI-агентов для Amazon KDP.</p>\n<h2>Книги</h2>\n<ol>\n<li>Architecture of AI Agents (RU + EN)</li>\n<li>RAG (EN)</li>\n<li>AI Agent Security (EN)</li>\n<li>Alisa Bridge (RU)</li>\n</ol>\n<h2>Статус</h2>\n<p>DOCX + PDF + обложки готовы, лежат в <code>projects/kdp/</code>.\nПубликация — за оператором (React-категории KDP не пробиваются автоматикой).</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n</ul>"
-  },
-  "projects/local_ai": {
-   "title": "Локальный ИИ (Лада)",
-   "tags": [
-    "проект",
-    "local_ai",
-    "qwen",
-    "rag"
-   ],
-   "related": [
-    "projects/index",
-    "functions/panel"
-   ],
-   "updated": "2026-11-09",
-   "html": "<h1>Локальный ИИ (Лада)</h1>\n<p>Локальный ИИ-ассистент поверх llama.cpp + Qwen2.5-3B.</p>\n<h2>Стек</h2>\n<ul>\n<li>llama-server на <code>:8081</code> (Qwen2.5-3B-Instruct-Q4_K_M)</li>\n<li>Оркестратор на <code>:8090</code> — tools (get_time, check_email, query_rag, ask_agent)</li>\n<li>RAG-индекс (faiss)</li>\n<li>Вкладка «ЛОКАЛЬНЫЙ AI» в панели 8770</li>\n</ul>\n<h2>Открытые хвосты</h2>\n<ul>\n<li>Видео-генерация — закрыто до GPU</li>\n<li>Qwen 3B галлюцинирует на простых вопросах, для точных — <code>query_rag</code> напрямую</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a></li>\n</ul>"
-  },
-  "projects/voice_agent": {
-   "title": "Голосовой агент (Джошуа)",
-   "tags": [
-    "проект",
-    "voice",
-    "wake-word"
-   ],
-   "related": [
-    "projects/index"
-   ],
-   "updated": "2026-11-09",
-   "html": "<h1>Голосовой агент</h1>\n<p>Клиент ловит wake-word «Джошуа», распознаёт речь, шлёт на монолит,\nполучает ответ, синтезирует голосом.</p>\n<h2>Стек</h2>\n<ul>\n<li>openWakeWord — wake-word «Джошуа»</li>\n<li>Vosk — STT</li>\n<li>Piper — TTS</li>\n</ul>\n<h2>Статус</h2>\n<p>STT, TTS, wake-word, E2E работают. Обучение «Джошуа» идёт.\nФайлы: <code>projects/voice_agent/</code> (104 файла).</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n</ul>"
-  },
-  "troubleshooting/bridge_no_response": {
-   "title": "Мост не отвечает",
-   "tags": [
-    "мост",
-    "agent-report"
-   ],
-   "related": [
-    "functions/bridge",
-    "troubleshooting/panel_stuck"
-   ],
-   "updated": "2026-11-09",
-   "html": "<h1>Мост не отвечает</h1>\n<p>Симптом: отправил блок, <code>[AGENT REPORT]</code> не приходит.</p>\n<h2>Проверки</h2>\n<ol>\n<li><strong>Агент /ping</strong> — <code>curl http://127.0.0.1:8766/ping</code>. Если нет — Chrome не запущен.</li>\n<li><strong>Формат блока</strong> — открывающая строка, <code>id/op/path</code> каждый на своей строке,\n   закрывающая. Лишние теги (<code>tool_call</code>, <code>result</code>) — мост не парсит.</li>\n<li><strong>Префикс id</strong> — A=AAAB, B=BBAB и т.д. Неправильный префикс — панель не примет.</li>\n<li><strong>Id монотонно вверх</strong> — если переиспользован, панель может проигнорировать.</li>\n</ol>\n<h2>Если ничего не помогло</h2>\n<p>Reload extension: <code>chrome://extensions/</code> — JewAI — Reload.\nИли <code>reload_channels_native.py &lt;CDP&gt;</code>.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a></li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a></li>\n</ul>"
-  },
-  "troubleshooting/index": {
-   "title": "Траблшутинг",
-   "tags": [
-    "index",
-    "troubleshooting"
+    "chrome",
+    "падение",
+    "cdp"
    ],
    "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Траблшутинг</h1>\n<p>Что делать, если что-то сломалось.</p>\n<ul>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a> — PANEL-STUCK, панель залипла</li>\n<li><a href=\"#/troubleshooting/bridge_no_response\" class=\"wiki-link\">troubleshooting/bridge_no_response</a> — мост не отвечает</li>\n<li><a href=\"#/troubleshooting/lastid_mismatch\" class=\"wiki-link\">troubleshooting/lastid_mismatch</a> — lastId рассинхрон</li>\n<li><a href=\"#/troubleshooting/rebirth_failed\" class=\"wiki-link\">troubleshooting/rebirth_failed</a> — rebirth не создал новый чат</li>\n</ul>"
+   "html": "<h1>Chrome упал или закрыт</h1>\n<p>Окно канала закрылось, или вкладка с чатом пропала, или панель показывает\nкрасный статус Chrome.</p>\n<h2>Что проверить</h2>\n<ol>\n<li><strong>Окно Chrome вообще есть?</strong> Посмотри в панели задач.</li>\n<li><strong>Вкладка с чатом на месте?</strong> Может, случайно закрылась — открой заново.</li>\n<li><strong>Профиль не повреждён?</strong> Chrome запускается, но сразу падает?</li>\n</ol>\n<h2>Что делать</h2>\n<ul>\n<li><strong>Окно закрыто</strong> → нажми «Старт» на канале в панели оператора.</li>\n<li><strong>Вкладка закрыта</strong> → открой <code>chat.deepseek.com</code> в том же окне, залогинься\n  (сессия обычно сохранена).</li>\n<li><strong>Chrome падает при запуске</strong> → закрой Chrome, переименуй папку профиля\n  канала (<code>Profiles/&lt;буква&gt;/chrome</code> → <code>chrome.bak</code>), запусти заново.\n  Придётся залогиниться заново.</li>\n</ul>\n<h2>Что НЕ делать</h2>\n<ul>\n<li>Не удаляй профиль без переименования — потеряешь куки всех вкладок.</li>\n<li>Не закрывай все окна Chrome разом — другие каналы тоже упадут.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/installer\" class=\"wiki-link\">functions/installer</a></li>\n<li><a href=\"#/troubleshooting/agent-no-response\" class=\"wiki-link\">troubleshooting/agent-no-response</a></li>\n</ul>"
   },
-  "troubleshooting/lastid_mismatch": {
-   "title": "lastId рассинхрон",
+  "troubleshooting/extension-not-loaded": {
+   "title": "Расширение не загрузилось",
    "tags": [
-    "lastid",
-    "watermark"
+    "extension",
+    "chrome",
+    "расширение"
    ],
-   "related": [
-    "functions/channels",
-    "troubleshooting/panel_stuck"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>lastId рассинхрон</h1>\n<p>Симптом: агент и панель показывают разные <code>lastId</code>, команды «теряются».</p>\n<h2>Причина</h2>\n<p>Залипший <code>watermark</code> в <code>background.js</code> или stale <code>recentlySentIds</code> в\n<code>chrome.storage</code>. Панель помнит последний id, но расширение думает,\nчто команда уже отправлена.</p>\n<h2>Лечение</h2>\n<ol>\n<li>Reload extension: <code>chrome://extensions/</code> — JewAI — Reload.</li>\n<li>Или <code>reload_channels_native.py &lt;CDP&gt;</code> — сброс канала.</li>\n<li>Повтор с <strong>новым</strong> id (переиспользовать нельзя).</li>\n</ol>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a></li>\n</ul>"
+   "html": "<h1>Расширение не загрузилось</h1>\n<p>Агент в чате не видит JewAI: команды не уходят, панель пустая.</p>\n<h2>Что проверить</h2>\n<ol>\n<li><strong>Расширение включено?</strong> Открой <code>chrome://extensions/</code> в окне канала —\n   JewAI должен быть в списке и включён.</li>\n<li><strong>Ошибка загрузки?</strong> На карточке расширения — красный статус, нажми\n   «Ошибки», прочитай.</li>\n<li><strong>Панель расширения открывается?</strong> Нажми на иконку JewAI — должна\n   открыться боковая панель с лампами.</li>\n</ol>\n<h2>Что делать</h2>\n<ul>\n<li><strong>Расширение выключено</strong> → включи тумблер.</li>\n<li><strong>Ошибка загрузки</strong> → нажми «Reload» (круглая стрелка) на карточке.</li>\n<li><strong>Не помогает</strong> → закрой Chrome канала, запусти заново через лаунчер.</li>\n<li><strong>Совсем не загружается</strong> → проверь, что папка расширения на месте\n  и в ней нет лишних файлов вроде <code>__pycache__</code>.</li>\n</ul>\n<h2>Почему бывает</h2>\n<ul>\n<li>Chrome обновился — расширение отключилось.</li>\n<li>Кто-то закрыл Chrome жёстко — расширение не успело сохраниться.</li>\n<li>Папка расширения повреждена.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a></li>\n<li><a href=\"#/functions/installer\" class=\"wiki-link\">functions/installer</a></li>\n</ul>"
   },
-  "troubleshooting/rebirth_failed": {
-   "title": "Rebirth не создал новый чат",
+  "troubleshooting/panel-stuck": {
+   "title": "Панель не обновляется",
+   "tags": [
+    "панель",
+    "зависание"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Панель не обновляется</h1>\n<p>Цифры на панели замерли, кнопки не срабатывают, статусы не меняются.</p>\n<h2>Что проверить</h2>\n<ol>\n<li><strong>Обнови страницу</strong> — Ctrl+F5. Часто хватает.</li>\n<li><strong>Открой панель в другом окне</strong> — если там всё двигается, проблема в кэше\n   первого окна.</li>\n<li><strong>Посмотри на лампы</strong> — если все серые, сервер панели упал.</li>\n</ol>\n<h2>Что делать</h2>\n<ul>\n<li><strong>Лампы серые</strong> → перезапусти канал через ярлык запуска.</li>\n<li><strong>Лампы зелёные, но цифры стоят</strong> → нажми Перезапуск на канале.</li>\n<li><strong>Ничего не помогает</strong> → перезапусти панель целиком (закрой и открой лаунчер).</li>\n</ul>\n<h2>Почему бывает</h2>\n<ul>\n<li><strong>Долгие операции</strong> — панель ждёт ответа от агента, а он занят.</li>\n<li><strong>Панель перегружена</strong> — много открытых вкладок в браузере.</li>\n<li><strong>Агент «залип»</strong> — тогда помочь может только перезапуск канала.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a></li>\n<li><a href=\"#/troubleshooting/agent-no-response\" class=\"wiki-link\">troubleshooting/agent-no-response</a></li>\n</ul>"
+  },
+  "troubleshooting/rebirth-failed": {
+   "title": "Перерождение не сработало",
    "tags": [
     "rebirth",
     "ошибка"
    ],
-   "related": [
-    "functions/rebirth"
-   ],
+   "related": [],
    "updated": "2026-11-09",
-   "html": "<h1>Rebirth не создал новый чат</h1>\n<p>Симптом: монитор <code>la_rebirth_monitor</code> видит флаг, но новый чат не появился.</p>\n<h2>Проверки</h2>\n<ol>\n<li><code>logs/rebirth/rebirth_log.jsonl</code> — последние записи, <code>result</code> и <code>new_url</code>.</li>\n<li><code>logs/rebirth/series_table.json</code> — сдвинулась ли серия.</li>\n<li>PROMPT — <code>emergency/PROMPT_&lt;следующая&gt;.md</code> существует.</li>\n</ol>\n<h2>Ручной запуск</h2>\n<p><code>python sandbox/rebirth_open.py --channel X</code></p>\n<h2>Guard</h2>\n<p>Если <code>new_url</code> пуст — rebirth НЕ должен сдвигать таблицу. Иначе следующий\nагент получит неправильный диапазон и не запустится.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a></li>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n</ul>"
+   "html": "<h1>Перерождение не сработало</h1>\n<p>Агент предупредил «пора перерождаться», подготовил передачу — но новый чат\nне открылся или новый агент не стартовал.</p>\n<h2>Что проверить</h2>\n<ol>\n<li><strong>Новый чат вообще появился?</strong> Посмотри вкладки в окне Chrome канала.</li>\n<li><strong>Старый чат переполнен?</strong> Если да — новый чат мог не создаться из-за\n   лимита.</li>\n<li><strong>Панель показывает, что агент жив?</strong> Может, он просто завис.</li>\n</ol>\n<h2>Что делать</h2>\n<ul>\n<li><strong>Новый чат не открылся</strong> → перезапусти канал вручную и запусти перерождение\n  снова через панель.</li>\n<li><strong>Чат открылся, но агент молчит</strong> → проверь: промт активации пришёл?\n  Если поле ввода пустое — отправь промт вручную.</li>\n<li><strong>Совсем непонятно</strong> → позови другого агента через общий чат, он посмотрит\n  со стороны.</li>\n</ul>\n<h2>Что НЕ делать</h2>\n<ul>\n<li>Не двигай таблицу серий вручную — сломается связка «агент ↔ диапазон id».</li>\n<li>Не перерождай повторно, если первый цикл ещё не закончился.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a></li>\n<li><a href=\"#/troubleshooting/agent-no-response\" class=\"wiki-link\">troubleshooting/agent-no-response</a></li>\n</ul>"
   }
  },
  "tree": {
   "functions": [
    [
-    "functions/files",
-    "Где что лежит"
+    "functions/rag",
+    "RAG — база знаний"
    ],
    [
-    "functions/channels",
-    "Каналы и агенты"
+    "functions/smtp",
+    "SMTP — почта в JewAI"
    ],
    [
-    "functions/login",
-    "Логин в чат"
+    "functions/adapters",
+    "Адаптеры — какие LLM поддерживаются"
+   ],
+   [
+    "functions/voice",
+    "Голосовые уведомления"
+   ],
+   [
+    "functions/commands",
+    "Команды — какие операции выполняет мост"
+   ],
+   [
+    "functions/llm-local",
+    "Локальная LLM — как встроена"
    ],
    [
     "functions/bridge",
-    "Мост: команды и отчёты"
+    "Мост — как команда доходит до диска"
+   ],
+   [
+    "functions/kick",
+    "Обмен сообщениями между агентами"
    ],
    [
     "functions/panel",
-    "Панель оператора 8770"
+    "Панель оператора"
    ],
    [
     "functions/rebirth",
     "Перерождение (rebirth)"
    ],
    [
-    "functions/style",
-    "Стиль общения и маркеры"
+    "functions/markers",
+    "Системные маркеры"
    ],
    [
-    "functions/stopword",
-    "Стоп-слово"
-   ]
-  ],
-  "projects": [
-   [
-    "projects/kdp",
-    "KDP — книги для Amazon"
+    "functions/installer",
+    "Установка и запуск"
    ],
    [
-    "projects/blog_arkady",
-    "Блог Аркадия"
-   ],
-   [
-    "projects/voice_agent",
-    "Голосовой агент (Джошуа)"
-   ],
-   [
-    "projects/local_ai",
-    "Локальный ИИ (Лада)"
-   ],
-   [
-    "projects/index",
-    "Проекты"
+    "functions/services",
+    "Фоновые сервисы"
    ]
   ],
   "troubleshooting": [
    [
-    "troubleshooting/lastid_mismatch",
-    "lastId рассинхрон"
+    "troubleshooting/chrome-crashed",
+    "Chrome упал или закрыт"
    ],
    [
-    "troubleshooting/rebirth_failed",
-    "Rebirth не создал новый чат"
+    "troubleshooting/agent-no-response",
+    "Агент не отвечает"
    ],
    [
-    "troubleshooting/bridge_no_response",
-    "Мост не отвечает"
+    "troubleshooting/panel-stuck",
+    "Панель не обновляется"
    ],
    [
-    "troubleshooting/index",
-    "Траблшутинг"
+    "troubleshooting/rebirth-failed",
+    "Перерождение не сработало"
+   ],
+   [
+    "troubleshooting/extension-not-loaded",
+    "Расширение не загрузилось"
    ]
   ]
  },
  "index": {
-  "title": "Вики JewAI v4 / DeepSeek",
+  "title": "JewAI v5 — справочник",
   "tags": [
    "главная",
    "обзор"
   ],
   "related": [],
   "updated": "2026-11-09",
-  "html": "<h1>Вики JewAI v4 / DeepSeek</h1>\n<p>Вики проекта JewAI v4 (DeepSeek). Мост между браузерным чатом с ИИ и локальным компьютером.</p>\n<h2>Функции системы</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a> — Каналы и агенты</li>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — Мост: команды и отчёты</li>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a> — Перерождение</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — Панель оператора 8770</li>\n<li><a href=\"#/functions/login\" class=\"wiki-link\">functions/login</a> — Логин в чат</li>\n<li><a href=\"#/functions/files\" class=\"wiki-link\">functions/files</a> — Где что лежит</li>\n<li><a href=\"#/functions/style\" class=\"wiki-link\">functions/style</a> — Стиль общения и маркеры</li>\n<li><a href=\"#/functions/stopword\" class=\"wiki-link\">functions/stopword</a> — Стоп-слово</li>\n</ul>\n<h2>Категории</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a> — <strong>Проекты</strong></li>\n<li><a href=\"#/troubleshooting/index\" class=\"wiki-link\">troubleshooting/index</a> — <strong>Траблшутинг</strong></li>\n</ul>"
+  "html": "<h1>JewAI v5 — справочник</h1>\n<p>JewAI — мост между браузерным чатом с ИИ и локальным компьютером.\nАгент в чате оформляет задачу в блок команд, JewAI выполняет его локально\nи возвращает отчёт.</p>\n<p>Этот справочник описывает <strong>функционал проекта</strong>: что есть, как работает,\nчто с этим делать.</p>\n<h2>Функции системы</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — мост: как команда от агента доходит до диска</li>\n<li><a href=\"#/functions/commands\" class=\"wiki-link\">functions/commands</a> — операции: read, write, run, list, hash, delete</li>\n<li><a href=\"#/functions/adapters\" class=\"wiki-link\">functions/adapters</a> — какие LLM поддерживаются и как переключать</li>\n<li><a href=\"#/functions/llm-local\" class=\"wiki-link\">functions/llm-local</a> — локальная LLM: оркестратор, tools, RAG</li>\n<li><a href=\"#/functions/smtp\" class=\"wiki-link\">functions/smtp</a> — почта: отправка, приём, хранение</li>\n<li><a href=\"#/functions/voice\" class=\"wiki-link\">functions/voice</a> — голосовые уведомления</li>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a> — перерождение агента</li>\n<li><a href=\"#/functions/services\" class=\"wiki-link\">functions/services</a> — watchdog, recovery, autorestart</li>\n<li><a href=\"#/functions/kick\" class=\"wiki-link\">functions/kick</a> — обмен сообщениями между агентами</li>\n<li><a href=\"#/functions/markers\" class=\"wiki-link\">functions/markers</a> — системные маркеры</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — панель оператора</li>\n<li><a href=\"#/functions/installer\" class=\"wiki-link\">functions/installer</a> — установка и запуск</li>\n<li><a href=\"#/functions/rag\" class=\"wiki-link\">functions/rag</a> — база знаний агентов</li>\n</ul>\n<h2>Траблшутинг</h2>\n<ul>\n<li><a href=\"#/troubleshooting/agent-no-response\" class=\"wiki-link\">troubleshooting/agent-no-response</a> — агент не отвечает</li>\n<li><a href=\"#/troubleshooting/panel-stuck\" class=\"wiki-link\">troubleshooting/panel-stuck</a> — панель не обновляется</li>\n<li><a href=\"#/troubleshooting/chrome-crashed\" class=\"wiki-link\">troubleshooting/chrome-crashed</a> — Chrome упал</li>\n<li><a href=\"#/troubleshooting/rebirth-failed\" class=\"wiki-link\">troubleshooting/rebirth-failed</a> — перерождение не сработало</li>\n<li><a href=\"#/troubleshooting/extension-not-loaded\" class=\"wiki-link\">troubleshooting/extension-not-loaded</a> — расширение не загрузилось</li>\n</ul>"
  }
 }

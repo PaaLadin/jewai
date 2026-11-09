@@ -206,7 +206,6 @@ function initTabs(){
       if(t.dataset.tab==='mnemo' && window.__mnemoRefresh) window.__mnemoRefresh();
       if(t.dataset.tab==='logs' && window.__logsRefresh) window.__logsRefresh();
       if(t.dataset.tab==='wiki' && window.__wikiInit) window.__wikiInit();
-      }
     });
   });
 }

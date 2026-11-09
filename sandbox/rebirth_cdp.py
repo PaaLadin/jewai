@@ -312,6 +312,14 @@ def verify_prompt_hits(cdp_port, new_url, prompt_path):
     if not tgt:
         tgt = tabs[-1]
     s = CDPSession(tgt["webSocketDebuggerUrl"], timeout=60)
+    try:
+        _ta = s.eval("(()=>{var t=document.querySelector('textarea');return t?t.value:'';})()") or ''
+    except Exception:
+        _ta = ''
+    if _ta.strip():
+        s.close()
+        print('    verify: textarea has draft (%d chars) - treat as NOT delivered' % len(_ta))
+        return 0
     body = s.eval("document.body.innerText") or ""
     s.close()
     return sum(1 for m in markers if m in body)
@@ -423,6 +431,16 @@ def run(ch, live=False, table=None):
         import subprocess as _spn
         out_json = os.path.join(ROOT, "logs", "rebirth", "open_%s_tmp.json" % ch)
         fill_text = "%s %s" % (info["next_series"], info["name"])
+        _tmpfill = os.path.join(ROOT, "logs", "rebirth", "_fill_%s.txt" % ch)
+        _hdr = fill_text
+        _body = open(prompt, encoding="utf-8").read()
+        _act_path = os.path.join(ROOT, "Templates", "PROMPT_ACTIVATION.md")
+        if os.path.exists(_act_path):
+            _act_text = open(_act_path, encoding="utf-8").read()
+            _composed = _hdr + chr(10)*2 + _act_text + chr(10)*2 + "---" + chr(10) + _body
+        else:
+            _composed = _hdr + chr(10)*2 + _body
+        open(_tmpfill, "w", encoding="utf-8").write(_composed)
         prompt_delivered = False
         prompt_verify_hits = None
         attach_info = {"ok": False,
@@ -431,7 +449,7 @@ def run(ch, live=False, table=None):
             _r = _spn.run([sys.executable,
                            os.path.join(ROOT, "sandbox", "rebirth_open.py"),
                            "--cdp", str(CDP[ch]),
-                           "--fill", fill_text,
+                           "--fill-file", _tmpfill,
                            "--out", out_json],
                           capture_output=True, text=True, timeout=240, cwd=ROOT)
             print("    rebirth_open rc=%d" % _r.returncode)
@@ -448,14 +466,8 @@ def run(ch, live=False, table=None):
                 _op = {}
             new_url = _op.get("url") or ""
             if new_url:
-                # ТЕКСТОВАЯ доставка PROMPT — основной путь
-                header_text = "%s %s" % (info["next_series"], info["name"])
-                try:
-                    _sp_ok = send_prompt_to_chat(CDP[ch], new_url, prompt, header_text)
-                    print("    send_prompt (text) ok=%s" % _sp_ok)
-                except Exception as _se:
-                    print("    send_prompt ERR: %r" % _se)
-                    _sp_ok = False
+                # 10C fix: единственная отправка — через rebirth_open выше (с --fill-file).
+                # Второй send_prompt_to_chat убран — дублировал сообщение (кривой + правильный).
                 time.sleep(3)
                 try:
                     _hits = verify_prompt_hits(CDP[ch], new_url, prompt)

@@ -23,16 +23,33 @@ def send_prompt_to_chat(cdp_port, new_url, prompt_path, header):
 
     HASH = chr(35) * 3
     BT = chr(96) * 3
+    example = (
+        BT + "\n"
+        + HASH + "BEGIN" + HASH + "\n"
+        "id: PR0001\n"
+        "op: read\n"
+        "path: C:\\DeepSeek\\SESSION_STATE.md\n"
+        + HASH + "END" + HASH + "\n"
+        + BT
+    )
     msg = (
         header + "\n\n"
         "Активация. Ты — LLM в браузерном чате. Прямого доступа к диску нет, "
         "но есть мост JewAI: он ловит в твоём тексте специальные блоки и шлёт "
         "локальному Python-агенту, возвращая [AGENT REPORT] с результатом.\n\n"
-        "Формат блока (внутри код-фенса):\n"
-        "  открывающая строка: " + HASH + " BEGIN " + HASH + "\n"
-        "  строки: id: <PR> | op: read | path: <файл>\n"
-        "  закрывающая: " + HASH + " END " + HASH + "\n\n"
-        "Ниже твой PROMPT — прочитай и выполни первое действие (чтение файлов через мост).\n\n"
+        "=== ФОРМАТ БЛОКА ===\n"
+        "Вся команда идёт ВНУТРИ тройных обратных кавычек (код-фенс). "
+        "Каждое поле — НА СВОЕЙ СТРОКЕ. Никаких | (вертикальных черт) "
+        "в качестве разделителей — мост их не понимает.\n\n"
+        "Пример:\n" + example + "\n\n"
+        "Правила:\n"
+        "1. Оберни блок в тройные обратные кавычки — иначе мост его не увидит.\n"
+        "2. Первая строка после фенса: три решётки + BEGIN + три решётки.\n"
+        "3. Каждое поле (id, op, path/cmd) — на отдельной строке.\n"
+        "4. Последняя строка: три решётки + END + три решётки.\n"
+        "5. id: 4 заглавные латинские буквы + 4 цифры (например CCAA9349).\n"
+        "6. Не пиши команду «мимо» фенса — мост увидит только текст внутри.\n\n"
+        "Ниже твой PROMPT — прочитай и выполни первое действие.\n\n"
         "---\n" + prompt_text
     )
 
@@ -92,15 +109,20 @@ def send_prompt_to_chat(cdp_port, new_url, prompt_path, header):
         s.close()
         return False
 
-    time.sleep(0.5)
-    for _ in range(2):
-        s.call('Input.dispatchKeyEvent',
-               {'type': 'keyDown', 'key': 'Enter', 'code': 'Enter',
-                'windowsVirtualKeyCode': 13, 'nativeVirtualKeyCode': 13})
-        time.sleep(0.1)
-        s.call('Input.dispatchKeyEvent',
-               {'type': 'keyUp', 'key': 'Enter', 'code': 'Enter',
-                'windowsVirtualKeyCode': 13, 'nativeVirtualKeyCode': 13})
-        time.sleep(2)
+    for attempt in range(3):
+        try:
+            s.call('Input.dispatchKeyEvent', {'type':'keyDown','key':'Enter','code':'Enter','windowsVirtualKeyCode':13,'nativeVirtualKeyCode':13})
+            time.sleep(0.1)
+            s.call('Input.dispatchKeyEvent', {'type':'keyUp','key':'Enter','code':'Enter','windowsVirtualKeyCode':13,'nativeVirtualKeyCode':13})
+        except Exception as e:
+            print('Enter ERR', e)
+        ok2 = False
+        for _ in range(16):
+            time.sleep(0.5)
+            try: v = s.eval("(()=>{var t=document.querySelector('textarea');return t?t.value:'';})()") or ''
+            except Exception: v = ''
+            if not v.strip(): ok2 = True; break
+        if ok2: break
+        time.sleep(1)
     s.close()
     return True

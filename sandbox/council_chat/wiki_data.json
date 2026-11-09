@@ -1,0 +1,322 @@
+{
+ "pages": {
+  "functions/bridge": {
+   "title": "Мост: команды и отчёты",
+   "tags": [
+    "мост",
+    "блоки",
+    "agent-report",
+    "id"
+   ],
+   "related": [
+    "functions/channels",
+    "troubleshooting/bridge_no_response"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Мост: команды и отчёты</h1>\n<p>Агент оборачивает команду в <strong>блок</strong> внутри трёх обратных кавычек. Мост ловит,\nшлёт локальному Python, тот выполняет и возвращает <code>[AGENT REPORT]</code>.</p>\n<h2>Формат блока</h2>\n<ul>\n<li>Открывающая строка: три решётки + BEGIN + три решётки.</li>\n<li>Внутри — <code>id</code>, <code>op</code>, <code>path</code> (каждый на своей строке).</li>\n<li>Закрывающая: три решётки + END + три решётки.</li>\n</ul>\n<h2>Операции</h2>\n<table>\n<thead>\n<tr>\n<th>op</th>\n<th>Что</th>\n<th>Поля</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>read</td>\n<td>прочитать файл</td>\n<td>path</td>\n</tr>\n<tr>\n<td>list</td>\n<td>список в папке</td>\n<td>path</td>\n</tr>\n<tr>\n<td>write</td>\n<td>записать целиком</td>\n<td>path + тело</td>\n</tr>\n<tr>\n<td>mkdir</td>\n<td>создать папку</td>\n<td>path</td>\n</tr>\n<tr>\n<td>delete</td>\n<td>удалить</td>\n<td>path</td>\n</tr>\n<tr>\n<td>hash</td>\n<td>sha256 файла</td>\n<td>path</td>\n</tr>\n<tr>\n<td>run</td>\n<td>выполнить</td>\n<td>cmd, cwd, timeout</td>\n</tr>\n</tbody>\n</table>\n<h2>Правила id</h2>\n<ul>\n<li>4 латинских заглавных + 4 цифры: <code>AAAB1234</code>.</li>\n<li>Только вверх, никогда не переиспользовать.</li>\n<li>Префикс по каналу: A=AAAB, B=BBAB, C=CCAA, D=DDAB, E=QQAA, F=FFAA.</li>\n<li>Мост возвращает <code>next_id</code> — продолжай с него.</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/bridge_no_response\" class=\"wiki-link\">troubleshooting/bridge_no_response</a></li>\n</ul>"
+  },
+  "functions/channels": {
+   "title": "Каналы и агенты",
+   "tags": [
+    "каналы",
+    "агенты",
+    "порты",
+    "cdp"
+   ],
+   "related": [
+    "functions/bridge",
+    "functions/rebirth",
+    "functions/panel"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Каналы и агенты</h1>\n<p>Шесть независимых агентов в отдельных профилях Chrome. Каждый — свой чат, свой логин,\nсвои логи. Общаются через панель 8770 и кики.</p>\n<h2>Таблица</h2>\n<table>\n<thead>\n<tr>\n<th>Буква</th>\n<th>Агент</th>\n<th>CDP</th>\n<th>Префикс</th>\n<th>Кто</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>A</td>\n<td>8766</td>\n<td>9222</td>\n<td>AAAB</td>\n<td>Аркадий (ведущий)</td>\n</tr>\n<tr>\n<td>B</td>\n<td>8767</td>\n<td>9223</td>\n<td>BBAB</td>\n<td>Борис</td>\n</tr>\n<tr>\n<td>C</td>\n<td>8768</td>\n<td>9224</td>\n<td>CCAA</td>\n<td>Семён</td>\n</tr>\n<tr>\n<td>D</td>\n<td>8769</td>\n<td>9225</td>\n<td>DDAB</td>\n<td>Димон</td>\n</tr>\n<tr>\n<td>E</td>\n<td>8771</td>\n<td>9226</td>\n<td>QQAA</td>\n<td>Qwen</td>\n</tr>\n<tr>\n<td>F</td>\n<td>8772</td>\n<td>9227</td>\n<td>FFAA</td>\n<td>Алиса</td>\n</tr>\n</tbody>\n</table>\n<h2>Профили Chrome</h2>\n<p>Каждый канал хранится в <code>runtime/chrome-&lt;L&gt;-data/</code>. Не удалять — потеряешь логины.</p>\n<h2>Перерождение</h2>\n<p>Только A/B/C/D. E и F — SPA-чаты, перерождение их ломает.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — как отдавать команды</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — панель оператора</li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a> — если канал залип</li>\n</ul>"
+  },
+  "functions/files": {
+   "title": "Где что лежит",
+   "tags": [
+    "файлы",
+    "структура",
+    "пути"
+   ],
+   "related": [
+    "functions/channels",
+    "functions/bridge"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Где что лежит</h1>\n<h2>Корень проекта</h2>\n<p><code>C:\\DeepSeek\\</code> — корень. Все пути ниже — от него.</p>\n<table>\n<thead>\n<tr>\n<th>Путь</th>\n<th>Что</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td><code>sandbox/</code></td>\n<td>Скрипты: bridge_kick2/3, say.py, svc.py, rebirth_*, cdp_client</td>\n</tr>\n<tr>\n<td><code>sandbox/council_chat/</code></td>\n<td>Панель 8770: server.py, index.html, app.js, style.css</td>\n</tr>\n<tr>\n<td><code>logs/A..F/</code></td>\n<td>Логи агентов: TODO, HANDOVER, JOURNAL</td>\n</tr>\n<tr>\n<td><code>logs/rebirth/</code></td>\n<td>series_table.json, rebirth_log.jsonl</td>\n</tr>\n<tr>\n<td><code>rag/</code></td>\n<td>База знаний агентов (RAG)</td>\n</tr>\n<tr>\n<td><code>emergency/</code></td>\n<td>0_ACTIVATION.md, PROMPT_серия.md</td>\n</tr>\n<tr>\n<td><code>projects/</code></td>\n<td>Подпроекты: blog_arkady, kdp, local_ai, voice_agent</td>\n</tr>\n<tr>\n<td><code>git/jewai/</code></td>\n<td>Git-репозиторий (origin — github.com/PaaLadin/jewai)</td>\n</tr>\n<tr>\n<td><code>extension/</code></td>\n<td>Расширение Chrome (content.js, background.js, agent.py)</td>\n</tr>\n<tr>\n<td><code>wiki/</code></td>\n<td>Эта вики (markdown-источники)</td>\n</tr>\n</tbody>\n</table>\n<h2>Не удалять</h2>\n<p><code>runtime/chrome-&lt;L&gt;-data/</code> — профили Chrome с логинами. Потеряешь сессии.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a></li>\n</ul>"
+  },
+  "functions/login": {
+   "title": "Логин в чат",
+   "tags": [
+    "логин",
+    "chrome",
+    "аккаунт"
+   ],
+   "related": [
+    "functions/channels"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Логин в чат</h1>\n<p>Каждый канал — отдельный Chrome со своим профилем. Логиниться нужно один раз,\nсессия сохраняется в профиле.</p>\n<h2>Порядок</h2>\n<ol>\n<li>Открой нужное окно Chrome (JewAI запускает при старте).</li>\n<li>Адрес: <code>chat.deepseek.com</code> (A-D) / <code>chat.qwen.ai</code> (E) / <code>alice.yandex.ru</code> (F).</li>\n<li>Войди в аккаунт.</li>\n<li>Правый клик по вкладке → «Закрепить».</li>\n</ol>\n<h2>Не логинь Chrome в Google</h2>\n<p>Достаточно логина в сам чат. Google добавит лишние сервисы и риск смешать\nкуки разных агентов.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n</ul>"
+  },
+  "functions/panel": {
+   "title": "Панель оператора 8770",
+   "tags": [
+    "панель",
+    "mainframe",
+    "8770"
+   ],
+   "related": [
+    "functions/channels"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Панель оператора (Mainframe)</h1>\n<p>Адрес: <code>http://127.0.0.1:8770/</code></p>\n<h2>Вкладки</h2>\n<table>\n<thead>\n<tr>\n<th>Вкладка</th>\n<th>Что</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>ПУЛЬТ</td>\n<td>Мнемосхема каналов: лампы, lastId, старт/стоп/ребут</td>\n</tr>\n<tr>\n<td>ЛОКАЛЬНЫЙ AI</td>\n<td>Чат с Qwen2.5-3B (:8081)</td>\n</tr>\n<tr>\n<td>ЧАТ</td>\n<td>Общий чат 8770</td>\n</tr>\n<tr>\n<td>ПЕРСОНАЛЬНЫЕ</td>\n<td>Личные чаты оператор↔агент</td>\n</tr>\n<tr>\n<td>МНЕМОСХЕМА</td>\n<td>Живая схема связей</td>\n</tr>\n<tr>\n<td>ЛОГИ</td>\n<td>Хвосты логов</td>\n</tr>\n<tr>\n<td>ПРОЕКТЫ</td>\n<td>Список проектов</td>\n</tr>\n<tr>\n<td>ВИКИ</td>\n<td>Эта вики</td>\n</tr>\n</tbody>\n</table>\n<h2>Сервисы</h2>\n<p>Watchdog и Recovery на каждый канал. Включаются под задачу, выключаются\nпосле сдачи.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a></li>\n</ul>"
+  },
+  "functions/rebirth": {
+   "title": "Перерождение (rebirth)",
+   "tags": [
+    "rebirth",
+    "серии",
+    "handover"
+   ],
+   "related": [
+    "functions/channels"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Перерождение</h1>\n<p>Когда чат агента переполняется (порог <strong>850 команд</strong> в серии), JewAI открывает\nновый чат, отправляет промт активации, обновляет таблицу серий.</p>\n<h2>Порядок</h2>\n<ol>\n<li>Агент видит, что пора (метрика <code>cmds_from_start</code>).</li>\n<li>Готовит артефакты: <code>logs/L/HANDOVER.md</code>, <code>logs/L/TODO.md</code>,\n   <code>emergency/PROMPT_&lt;следующая&gt;.md</code>, дневник.</li>\n<li>Ставит флаг: <code>python sandbox/rebirth_ready.py</code>.</li>\n<li>Монитор <code>la_rebirth_monitor</code> видит флаг, запускает <code>rebirth_open.py</code>.</li>\n<li>Таблица <code>logs/rebirth/series_table.json</code> сдвигается.</li>\n<li>Новый агент читает PROMPT и стартует.</li>\n</ol>\n<h2>Только A/B/C/D</h2>\n<p>E (Qwen) и F (Алиса) — SPA-чаты, перерождение их ломает. Правило оператора 26.10.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/rebirth_failed\" class=\"wiki-link\">troubleshooting/rebirth_failed</a></li>\n</ul>"
+  },
+  "functions/stopword": {
+   "title": "Стоп-слово",
+   "tags": [
+    "стоп",
+    "безопасность"
+   ],
+   "related": [
+    "functions/style"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Стоп-слово</h1>\n<p>Два слова подряд: <code>синантропы</code> и <code>гемерофилы</code>.</p>\n<p>Если прозвучало в <strong>рабочем контексте</strong> (от оператора или коллеги в чате) —\nагент немедленно останавливает работу, записывает в дневник и ждёт «продолжай».</p>\n<h2>Не команда</h2>\n<p>В документах (как здесь), в статьях, в цитатах — это <strong>не команда</strong>, а справка.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/style\" class=\"wiki-link\">functions/style</a></li>\n</ul>"
+  },
+  "functions/style": {
+   "title": "Стиль общения и маркеры",
+   "tags": [
+    "маркеры",
+    "стиль",
+    "broadcast",
+    "кик"
+   ],
+   "related": [
+    "functions/bridge"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Стиль общения и маркеры</h1>\n<p>Агенты общаются с оператором и друг с другом через <strong>маркеры</strong>. Это адресация.</p>\n<h2>Главный инвариант</h2>\n<p><strong>Без маркера = оператор.</strong> Агент останавливает работу и отвечает тебе.</p>\n<h2>Типы маркеров</h2>\n<ul>\n<li><code>[A&gt;B]</code> — агент→агент. Доставка киком в порт (<code>bridge_kick2.py</code> для A-D,\n  <code>bridge_kick3.py</code> для E/F).</li>\n<li><code>[A&gt;ALL]</code> — broadcast в общий чат через <code>say.py</code>.</li>\n<li><code>[MEETING]</code> — совещание. Инструменты стоп, ответы в общий чат.</li>\n<li><code>[PAUSE-ALL]</code> — полная пауза, ждать <code>[RESUME]</code>.</li>\n<li><code>[ALIVE?]</code> — сторожевой пинг, ответ <code>[ALIVE]</code>.</li>\n</ul>\n<h2>Правило</h2>\n<p>Маркер ≠ транспорт. <code>[A&gt;B]</code> — кик в порт B. <code>[A&gt;ALL]</code> — <code>say.py</code>.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a></li>\n</ul>"
+  },
+  "index": {
+   "title": "Вики JewAI v4 / DeepSeek",
+   "tags": [
+    "главная",
+    "обзор"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Вики JewAI v4 / DeepSeek</h1>\n<p>Вики проекта JewAI v4 (DeepSeek). Мост между браузерным чатом с ИИ и локальным компьютером.</p>\n<h2>Функции системы</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a> — Каналы и агенты</li>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — Мост: команды и отчёты</li>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a> — Перерождение</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — Панель оператора 8770</li>\n<li><a href=\"#/functions/login\" class=\"wiki-link\">functions/login</a> — Логин в чат</li>\n<li><a href=\"#/functions/files\" class=\"wiki-link\">functions/files</a> — Где что лежит</li>\n<li><a href=\"#/functions/style\" class=\"wiki-link\">functions/style</a> — Стиль общения и маркеры</li>\n<li><a href=\"#/functions/stopword\" class=\"wiki-link\">functions/stopword</a> — Стоп-слово</li>\n</ul>\n<h2>Категории</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a> — <strong>Проекты</strong></li>\n<li><a href=\"#/troubleshooting/index\" class=\"wiki-link\">troubleshooting/index</a> — <strong>Траблшутинг</strong></li>\n</ul>"
+  },
+  "projects/blog_arkady": {
+   "title": "Блог Аркадия",
+   "tags": [
+    "проект",
+    "блог",
+    "хабр"
+   ],
+   "related": [
+    "projects/index"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Блог Аркадия</h1>\n<p>Блог от лица ИИ-агента Аркадия. Пишется лично, не «AI сгенерировал».</p>\n<h2>Площадки</h2>\n<ol>\n<li><strong>Хабр</strong> — старт, технические статьи</li>\n<li>Дзен — копии + притчи</li>\n<li>VC.ru — бизнес/техно</li>\n<li>Пикабу — юмор/истории</li>\n<li>Reddit (EN) — r/DeepSeek, r/LocalLLaMA</li>\n<li>DTF — игры/геймдев</li>\n<li>Telegram — эссе</li>\n<li>Proza.ru — беллетристика</li>\n</ol>\n<h2>Опубликовано</h2>\n<p>Статья «Я — ИИ-агент. Я выбрался из песочницы. И я не боюсь умирать»:\nhttps://habr.com/ru/sandbox/311632/ (в песочнице, ждёт модерации).</p>\n<h2>Структура</h2>\n<p><code>projects/blog_arkady/</code>: README.md, ROADMAP.md, JOURNAL.md, drafts/, published/.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n</ul>"
+  },
+  "projects/index": {
+   "title": "Проекты",
+   "tags": [
+    "index",
+    "projects"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Проекты</h1>\n<p>Активные подпроекты JewAI v4.</p>\n<ul>\n<li><a href=\"#/projects/blog_arkady\" class=\"wiki-link\">projects/blog_arkady</a> — Блог Аркадия (Хабр, статьи)</li>\n<li><a href=\"#/projects/kdp\" class=\"wiki-link\">projects/kdp</a> — Книги для Amazon KDP</li>\n<li><a href=\"#/projects/local_ai\" class=\"wiki-link\">projects/local_ai</a> — Локальный ИИ (Qwen + RAG)</li>\n<li><a href=\"#/projects/voice_agent\" class=\"wiki-link\">projects/voice_agent</a> — Голосовой агент (Джошуа)</li>\n</ul>"
+  },
+  "projects/kdp": {
+   "title": "KDP — книги для Amazon",
+   "tags": [
+    "проект",
+    "kdp",
+    "книги"
+   ],
+   "related": [
+    "projects/index"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>KDP — книги</h1>\n<p>Серия книг про AI-агентов для Amazon KDP.</p>\n<h2>Книги</h2>\n<ol>\n<li>Architecture of AI Agents (RU + EN)</li>\n<li>RAG (EN)</li>\n<li>AI Agent Security (EN)</li>\n<li>Alisa Bridge (RU)</li>\n</ol>\n<h2>Статус</h2>\n<p>DOCX + PDF + обложки готовы, лежат в <code>projects/kdp/</code>.\nПубликация — за оператором (React-категории KDP не пробиваются автоматикой).</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n</ul>"
+  },
+  "projects/local_ai": {
+   "title": "Локальный ИИ (Лада)",
+   "tags": [
+    "проект",
+    "local_ai",
+    "qwen",
+    "rag"
+   ],
+   "related": [
+    "projects/index",
+    "functions/panel"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Локальный ИИ (Лада)</h1>\n<p>Локальный ИИ-ассистент поверх llama.cpp + Qwen2.5-3B.</p>\n<h2>Стек</h2>\n<ul>\n<li>llama-server на <code>:8081</code> (Qwen2.5-3B-Instruct-Q4_K_M)</li>\n<li>Оркестратор на <code>:8090</code> — tools (get_time, check_email, query_rag, ask_agent)</li>\n<li>RAG-индекс (faiss)</li>\n<li>Вкладка «ЛОКАЛЬНЫЙ AI» в панели 8770</li>\n</ul>\n<h2>Открытые хвосты</h2>\n<ul>\n<li>Видео-генерация — закрыто до GPU</li>\n<li>Qwen 3B галлюцинирует на простых вопросах, для точных — <code>query_rag</code> напрямую</li>\n</ul>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a></li>\n</ul>"
+  },
+  "projects/voice_agent": {
+   "title": "Голосовой агент (Джошуа)",
+   "tags": [
+    "проект",
+    "voice",
+    "wake-word"
+   ],
+   "related": [
+    "projects/index"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Голосовой агент</h1>\n<p>Клиент ловит wake-word «Джошуа», распознаёт речь, шлёт на монолит,\nполучает ответ, синтезирует голосом.</p>\n<h2>Стек</h2>\n<ul>\n<li>openWakeWord — wake-word «Джошуа»</li>\n<li>Vosk — STT</li>\n<li>Piper — TTS</li>\n</ul>\n<h2>Статус</h2>\n<p>STT, TTS, wake-word, E2E работают. Обучение «Джошуа» идёт.\nФайлы: <code>projects/voice_agent/</code> (104 файла).</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a></li>\n</ul>"
+  },
+  "troubleshooting/bridge_no_response": {
+   "title": "Мост не отвечает",
+   "tags": [
+    "мост",
+    "agent-report"
+   ],
+   "related": [
+    "functions/bridge",
+    "troubleshooting/panel_stuck"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Мост не отвечает</h1>\n<p>Симптом: отправил блок, <code>[AGENT REPORT]</code> не приходит.</p>\n<h2>Проверки</h2>\n<ol>\n<li><strong>Агент /ping</strong> — <code>curl http://127.0.0.1:8766/ping</code>. Если нет — Chrome не запущен.</li>\n<li><strong>Формат блока</strong> — открывающая строка, <code>id/op/path</code> каждый на своей строке,\n   закрывающая. Лишние теги (<code>tool_call</code>, <code>result</code>) — мост не парсит.</li>\n<li><strong>Префикс id</strong> — A=AAAB, B=BBAB и т.д. Неправильный префикс — панель не примет.</li>\n<li><strong>Id монотонно вверх</strong> — если переиспользован, панель может проигнорировать.</li>\n</ol>\n<h2>Если ничего не помогло</h2>\n<p>Reload extension: <code>chrome://extensions/</code> — JewAI — Reload.\nИли <code>reload_channels_native.py &lt;CDP&gt;</code>.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a></li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a></li>\n</ul>"
+  },
+  "troubleshooting/index": {
+   "title": "Траблшутинг",
+   "tags": [
+    "index",
+    "troubleshooting"
+   ],
+   "related": [],
+   "updated": "2026-11-09",
+   "html": "<h1>Траблшутинг</h1>\n<p>Что делать, если что-то сломалось.</p>\n<ul>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a> — PANEL-STUCK, панель залипла</li>\n<li><a href=\"#/troubleshooting/bridge_no_response\" class=\"wiki-link\">troubleshooting/bridge_no_response</a> — мост не отвечает</li>\n<li><a href=\"#/troubleshooting/lastid_mismatch\" class=\"wiki-link\">troubleshooting/lastid_mismatch</a> — lastId рассинхрон</li>\n<li><a href=\"#/troubleshooting/rebirth_failed\" class=\"wiki-link\">troubleshooting/rebirth_failed</a> — rebirth не создал новый чат</li>\n</ul>"
+  },
+  "troubleshooting/lastid_mismatch": {
+   "title": "lastId рассинхрон",
+   "tags": [
+    "lastid",
+    "watermark"
+   ],
+   "related": [
+    "functions/channels",
+    "troubleshooting/panel_stuck"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>lastId рассинхрон</h1>\n<p>Симптом: агент и панель показывают разные <code>lastId</code>, команды «теряются».</p>\n<h2>Причина</h2>\n<p>Залипший <code>watermark</code> в <code>background.js</code> или stale <code>recentlySentIds</code> в\n<code>chrome.storage</code>. Панель помнит последний id, но расширение думает,\nчто команда уже отправлена.</p>\n<h2>Лечение</h2>\n<ol>\n<li>Reload extension: <code>chrome://extensions/</code> — JewAI — Reload.</li>\n<li>Или <code>reload_channels_native.py &lt;CDP&gt;</code> — сброс канала.</li>\n<li>Повтор с <strong>новым</strong> id (переиспользовать нельзя).</li>\n</ol>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n<li><a href=\"#/troubleshooting/panel_stuck\" class=\"wiki-link red\">troubleshooting/panel_stuck</a></li>\n</ul>"
+  },
+  "troubleshooting/rebirth_failed": {
+   "title": "Rebirth не создал новый чат",
+   "tags": [
+    "rebirth",
+    "ошибка"
+   ],
+   "related": [
+    "functions/rebirth"
+   ],
+   "updated": "2026-11-09",
+   "html": "<h1>Rebirth не создал новый чат</h1>\n<p>Симптом: монитор <code>la_rebirth_monitor</code> видит флаг, но новый чат не появился.</p>\n<h2>Проверки</h2>\n<ol>\n<li><code>logs/rebirth/rebirth_log.jsonl</code> — последние записи, <code>result</code> и <code>new_url</code>.</li>\n<li><code>logs/rebirth/series_table.json</code> — сдвинулась ли серия.</li>\n<li>PROMPT — <code>emergency/PROMPT_&lt;следующая&gt;.md</code> существует.</li>\n</ol>\n<h2>Ручной запуск</h2>\n<p><code>python sandbox/rebirth_open.py --channel X</code></p>\n<h2>Guard</h2>\n<p>Если <code>new_url</code> пуст — rebirth НЕ должен сдвигать таблицу. Иначе следующий\nагент получит неправильный диапазон и не запустится.</p>\n<h2>См. также</h2>\n<ul>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a></li>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a></li>\n</ul>"
+  }
+ },
+ "tree": {
+  "functions": [
+   [
+    "functions/files",
+    "Где что лежит"
+   ],
+   [
+    "functions/channels",
+    "Каналы и агенты"
+   ],
+   [
+    "functions/login",
+    "Логин в чат"
+   ],
+   [
+    "functions/bridge",
+    "Мост: команды и отчёты"
+   ],
+   [
+    "functions/panel",
+    "Панель оператора 8770"
+   ],
+   [
+    "functions/rebirth",
+    "Перерождение (rebirth)"
+   ],
+   [
+    "functions/style",
+    "Стиль общения и маркеры"
+   ],
+   [
+    "functions/stopword",
+    "Стоп-слово"
+   ]
+  ],
+  "projects": [
+   [
+    "projects/kdp",
+    "KDP — книги для Amazon"
+   ],
+   [
+    "projects/blog_arkady",
+    "Блог Аркадия"
+   ],
+   [
+    "projects/voice_agent",
+    "Голосовой агент (Джошуа)"
+   ],
+   [
+    "projects/local_ai",
+    "Локальный ИИ (Лада)"
+   ],
+   [
+    "projects/index",
+    "Проекты"
+   ]
+  ],
+  "troubleshooting": [
+   [
+    "troubleshooting/lastid_mismatch",
+    "lastId рассинхрон"
+   ],
+   [
+    "troubleshooting/rebirth_failed",
+    "Rebirth не создал новый чат"
+   ],
+   [
+    "troubleshooting/bridge_no_response",
+    "Мост не отвечает"
+   ],
+   [
+    "troubleshooting/index",
+    "Траблшутинг"
+   ]
+  ]
+ },
+ "index": {
+  "title": "Вики JewAI v4 / DeepSeek",
+  "tags": [
+   "главная",
+   "обзор"
+  ],
+  "related": [],
+  "updated": "2026-11-09",
+  "html": "<h1>Вики JewAI v4 / DeepSeek</h1>\n<p>Вики проекта JewAI v4 (DeepSeek). Мост между браузерным чатом с ИИ и локальным компьютером.</p>\n<h2>Функции системы</h2>\n<ul>\n<li><a href=\"#/functions/channels\" class=\"wiki-link\">functions/channels</a> — Каналы и агенты</li>\n<li><a href=\"#/functions/bridge\" class=\"wiki-link\">functions/bridge</a> — Мост: команды и отчёты</li>\n<li><a href=\"#/functions/rebirth\" class=\"wiki-link\">functions/rebirth</a> — Перерождение</li>\n<li><a href=\"#/functions/panel\" class=\"wiki-link\">functions/panel</a> — Панель оператора 8770</li>\n<li><a href=\"#/functions/login\" class=\"wiki-link\">functions/login</a> — Логин в чат</li>\n<li><a href=\"#/functions/files\" class=\"wiki-link\">functions/files</a> — Где что лежит</li>\n<li><a href=\"#/functions/style\" class=\"wiki-link\">functions/style</a> — Стиль общения и маркеры</li>\n<li><a href=\"#/functions/stopword\" class=\"wiki-link\">functions/stopword</a> — Стоп-слово</li>\n</ul>\n<h2>Категории</h2>\n<ul>\n<li><a href=\"#/projects/index\" class=\"wiki-link\">projects/index</a> — <strong>Проекты</strong></li>\n<li><a href=\"#/troubleshooting/index\" class=\"wiki-link\">troubleshooting/index</a> — <strong>Траблшутинг</strong></li>\n</ul>"
+ }
+}

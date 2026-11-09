@@ -1408,6 +1408,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, p.read_text(encoding="utf-8"), "text/html; charset=utf-8")
             else:
                 self._send(404, "wiki.html missing", "text/plain")
+        elif self.path == "/api/wiki":
+            p = CHAT_DIR / "wiki_data.json"
+            if p.exists():
+                body = p.read_text(encoding="utf-8")
+                self._send(200, body, "application/json; charset=utf-8")
+            else:
+                self._send(404, "wiki_data.json missing (run wiki_build.py)", "text/plain")
         elif self.path == "/api/projects":
             self._send(200, {"ok": True, "projects": scan_projects()})
         elif self.path.startswith("/roadmap/"):
@@ -1460,6 +1467,12 @@ class Handler(BaseHTTPRequestHandler):
         elif self.path == "/app.js":
             p = CHAT_DIR / "app.js"
             self._send(200, p.read_text(encoding="utf-8"), "application/javascript; charset=utf-8")
+        elif self.path == "/wiki.js":
+            p = CHAT_DIR / "wiki.js"
+            if p.exists():
+                self._send(200, p.read_text(encoding="utf-8"), "application/javascript; charset=utf-8")
+            else:
+                self._send(404, "wiki.js missing", "text/plain")
         elif self.path == "/pers.js":
             p = CHAT_DIR / "pers.js"
             if p.exists():

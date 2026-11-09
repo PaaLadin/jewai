@@ -166,204 +166,16 @@
     </div>
   </div>
 
-  <div class="screen" id="screen-wiki">
-    <div class="wiki-wrap">
-      <div class="wiki-search"><input id="wikiQ" type="search" placeholder="ПОИСК ПО ВИКИ (/ — фокус, ESC — сброс)" autocomplete="off"></div>
-      <div class="wiki-nav" id="wikiNav">
-        <a href="#what">ЧТО ЭТО</a>
-        <a href="#channels">КАНАЛЫ</a>
-        <a href="#bridge">МОСТ</a>
-        <a href="#login">ЛОГИН</a>
-        <a href="#panel">ПАНЕЛЬ</a>
-        <a href="#rebirth">ПЕРЕРОЖДЕНИЕ</a>
-        <a href="#troubles">ЕСЛИ ЧТО-ТО</a>
-        <a href="#files">ФАЙЛЫ</a>
-        <a href="#projects">ПРОЕКТЫ</a>
-        <a href="#style">СТИЛЬ</a>
-        <a href="#stopword">СТОП-СЛОВО</a>
-      </div>
-      <div class="wiki-body" id="wikiBody">
-
-
-<section id="what">
-<h1>ЧТО ТАКОЕ JEWAI V4 / DEEPSEEK</h1>
-<p><strong>JewAI</strong> — мост между браузерным чатом с ИИ (DeepSeek, Qwen, Алиса) и твоим компьютером. Ты пишешь агенту задачу текстом — он оформляет её как <em>блок команд</em>, JewAI выполняет этот блок локально и возвращает агенту отчёт с результатом.</p>
-<p>В DeepSeek работают <strong>6 агентов</strong> в отдельных профилях Chrome: A, B, C, D — на DeepSeek, E — на Qwen, F — на Алисе. Общаются через общий чат и кики.</p>
-<div class="card info">
-<strong>ГЛАВНОЕ ПРАВИЛО:</strong> сообщение <em>без маркера</em> в начале — это <strong>оператор</strong>. Агент останавливает работу и отвечает тебе. Сообщение с маркером (например [A&gt;B]) — от агента к агенту.
-</div>
-</section>
-
-<section id="channels">
-<h2>КАНАЛЫ И АГЕНТЫ</h2>
-<p>Каждый канал — отдельный Chrome со своим профилем и агентом на диске.</p>
-<table>
-<tr><th>БУКВА</th><th>АГЕНТ</th><th>CDP</th><th>ПРЕФИКС</th><th>КТО</th></tr>
-<tr><td>A</td><td>8766</td><td>9222</td><td>AAAB</td><td>Аркадий (ведущий)</td></tr>
-<tr><td>B</td><td>8767</td><td>9223</td><td>BBAB</td><td>Борис</td></tr>
-<tr><td>C</td><td>8768</td><td>9224</td><td>CCAA</td><td>Семён</td></tr>
-<tr><td>D</td><td>8769</td><td>9225</td><td>DDAB</td><td>Димон</td></tr>
-<tr><td>E</td><td>8771</td><td>9226</td><td>QQAA</td><td>Qwen</td></tr>
-<tr><td>F</td><td>8772</td><td>9227</td><td>FFAA</td><td>Алиса</td></tr>
-</table>
-<p><strong>ПАНЕЛЬ ОПЕРАТОРА</strong> (Mainframe): <a href="http://127.0.0.1:8770" target="_blank">http://127.0.0.1:8770</a></p>
-<div class="card tip">
-<strong>E и F не перерождаются.</strong> Rebirth только для A/B/C/D. Qwen и Алиса — SPA-чаты, перерождение их ломает.
-</div>
-</section>
-
-<section id="bridge">
-<h2>КАК ОТДАВАТЬ КОМАНДЫ</h2>
-<p>Агент оборачивает команду в <strong>блок</strong> внутри трёх обратных кавычек. В этом документе маркеры показаны HTML-сущностями, чтобы не ломать парсер моста:</p>
-<pre>&#35;&#35;&#35; BEGIN &#35;&#35;&#35;
-id: AAAB1234
-op: read
-path: logs/A/TODO.md
-&#35;&#35;&#35; END &#35;&#35;&#35;</pre>
-<p>Мост ловит блок, шлёт локальному Python, тот выполняет и возвращает <code>[AGENT REPORT]</code>:</p>
-<pre>[AGENT REPORT]
-id: AAAB1234 | op: read | OK
-path: C:\DeepSeek\logs\A\TODO.md
-bytes: 12345
-next_id: AAAB1235</pre>
-
-<h3>ТИПЫ ОПЕРАЦИЙ</h3>
-<table>
-<tr><th>op</th><th>ЧТО</th><th>ПОЛЯ</th></tr>
-<tr><td>read</td><td>прочитать</td><td>path</td></tr>
-<tr><td>list</td><td>список в папке</td><td>path</td></tr>
-<tr><td>write</td><td>записать целиком</td><td>path + тело</td></tr>
-<tr><td>mkdir</td><td>создать папку</td><td>path</td></tr>
-<tr><td>delete</td><td>удалить</td><td>path</td></tr>
-<tr><td>hash</td><td>sha256 файла</td><td>path</td></tr>
-<tr><td>run</td><td>выполнить</td><td>cmd, cwd, timeout</td></tr>
-</table>
-
-<h3>ПРАВИЛА ID</h3>
-<ul>
-<li>4 латинских заглавных + 4 цифры: AAAB1234.</li>
-<li>Только вверх, никогда не переиспользовать.</li>
-<li>Префикс по каналу: A=AAAB, B=BBAB, C=CCAA, D=DDAB, E=QQAA, F=FFAA.</li>
-<li>Мост возвращает <code>next_id</code> — продолжай с него.</li>
-</ul>
-</section>
-
-<section id="login">
-<h2>КАК ЗАЛОГИНИТЬСЯ В ЧАТ</h2>
-<ol>
-<li>Открой нужное окно Chrome (JewAI запускает при старте).</li>
-<li>Адрес: chat.deepseek.com (A-D) / chat.qwen.ai (E) / alice.yandex.ru (F).</li>
-<li>Войди в аккаунт.</li>
-<li>Правый клик по вкладке → «Закрепить».</li>
-</ol>
-<div class="card warn">
-<strong>Не логинь Chrome в Google.</strong> Достаточно логина в сам чат. Google добавит лишние сервисы и риск смешать куки.
-</div>
-</section>
-
-<section id="panel">
-<h2>ПАНЕЛЬ ОПЕРАТОРА (8770)</h2>
-<p><a href="http://127.0.0.1:8770" target="_blank">http://127.0.0.1:8770/</a></p>
-<table>
-<tr><th>ВКЛАДКА</th><th>ЧТО</th></tr>
-<tr><td>ПУЛЬТ</td><td>Мнемосхема каналов: лампы CDP/watchdog/recovery, lastId, старт/стоп/ребут.</td></tr>
-<tr><td>ЛОКАЛЬНЫЙ AI</td><td>Чат с Qwen2.5-3B (:8081) через оркестратор :8090.</td></tr>
-<tr><td>ЧАТ</td><td>Общий чат 8770. Broadcast [X&gt;ALL]. Кнопки СОВЕЩАНИЕ / ПАУЗА ВСЕМ / ПРОДОЛЖИТЬ.</td></tr>
-<tr><td>ПЕРСОНАЛЬНЫЕ</td><td>Личные чаты оператор↔агент по каналам.</td></tr>
-<tr><td>МНЕМОСХЕМА</td><td>Живая схема связей.</td></tr>
-<tr><td>ЛОГИ</td><td>Хвосты логов.</td></tr>
-<tr><td>ПРОЕКТЫ</td><td>Список проектов с ROADMAP.html.</td></tr>
-<tr><td>ВИКИ</td><td>Эта страница.</td></tr>
-</table>
-</section>
-
-<section id="rebirth">
-<h2>ПЕРЕРОЖДЕНИЕ (REBIRTH)</h2>
-<p>Когда чат агента переполняется (порог <strong>850 команд</strong> в серии), JewAI открывает новый чат, отправляет туда промт активации, обновляет таблицу серий. Старый чат остаётся в истории, новый агент продолжает в новом.</p>
-<p>Простыми словами: агент переезжает в новый чат, знания сохраняются через файлы (HANDOVER, TODO, JOURNAL).</p>
-<div class="card">
-<strong>ПОРЯДОК:</strong>
-<ol>
-<li>Агент видит, что пора (метрика cmds_from_start).</li>
-<li>Готовит артефакты: logs/L/HANDOVER.md, logs/L/TODO.md, emergency/PROMPT_следующая.md, дневник.</li>
-<li>Ставит флаг через <code>python sandbox/rebirth_ready.py</code>.</li>
-<li>Монитор <code>la_rebirth_monitor</code> видит флаг, запускает rebirth_open.py: новый чат + кик промта.</li>
-<li>Таблица <code>logs/rebirth/series_table.json</code> сдвигается.</li>
-<li>Новый агент читает PROMPT и стартует.</li>
-</ol>
-</div>
-<div class="card warn"><strong>Только A/B/C/D.</strong> E и F не перерождаются.</div>
-</section>
-
-<section id="troubles">
-<h2>ЧТО ДЕЛАТЬ, ЕСЛИ ЧТО-ТО СЛОМАЛОСЬ</h2>
-
-<div class="card warn"><strong>PANEL-STUCK (панель залипла).</strong> Команды не исполняются, lastId стоит. Лечение: <code>read_panel_state2.py &lt;CDP&gt;</code> → если висит &gt;90с, <code>reload_channels_native.py &lt;порт&gt;</code> → повтор с новым id.</div>
-
-<div class="card warn"><strong>Красная лампа CDP.</strong> Chrome не запущен или упал. Панель → СТАРТ на блоке chrome:&lt;буква&gt;.</div>
-
-<div class="card warn"><strong>Мост не отвечает.</strong> Проверь: агент (8766-8772) на /ping отвечает? Формат блока: открывающая строка (три решётки+BEGIN+три решётки), id/op/path каждый на своей строке, закрывающая. Если в блоке лишние теги (tool_call/result) — мост не парсит.</div>
-
-<div class="card warn"><strong>lastId рассинхрон.</strong> Агент и панель показывают разные id. Причина — залипший watermark в background.js. Лечение: перезагрузить extension (chrome://extensions → Reload) или <code>reload_channels_native.py &lt;порт&gt;</code>.</div>
-
-<div class="card warn"><strong>Watchdog мигает / ложные [ALIVE?].</strong> Смотри logs/svc/watchdog_L.json. Watchdog ON только когда у агента есть задача.</div>
-
-<div class="card warn"><strong>Rebirth не создал новый чат.</strong> Проверь logs/rebirth/rebirth_log.jsonl. Руками: <code>python sandbox/rebirth_open.py --channel X</code>.</div>
-</section>
-
-<section id="files">
-<h2>ГДЕ ЧТО ЛЕЖИТ</h2>
-<table>
-<tr><th>ПУТЬ</th><th>ЧТО</th></tr>
-<tr><td>C:\DeepSeek\</td><td>Корень проекта.</td></tr>
-<tr><td>C:\DeepSeek\sandbox\</td><td>Скрипты: bridge_kick2/3, say.py, svc.py, rebirth_*, cdp_client.</td></tr>
-<tr><td>C:\DeepSeek\sandbox\council_chat\</td><td>Панель 8770: server.py, index.html, app.js, style.css, wiki.html.</td></tr>
-<tr><td>C:\DeepSeek\logs\A..F\</td><td>Логи агентов: TODO, HANDOVER, JOURNAL.</td></tr>
-<tr><td>C:\DeepSeek\logs\rebirth\</td><td>series_table.json, rebirth_log.jsonl.</td></tr>
-<tr><td>C:\DeepSeek\rag\</td><td>База знаний агентов (RAG).</td></tr>
-<tr><td>C:\DeepSeek\emergency\</td><td>0_ACTIVATION.md, PROMPT_серия.md.</td></tr>
-<tr><td>C:\DeepSeek\projects\</td><td>Подпроекты: blog_arkady, kdp, local_ai, voice_agent.</td></tr>
-<tr><td>C:\DeepSeek\git\jewai\</td><td>Git-репозиторий. Пушится на github.com/PaaLadin/jewai.</td></tr>
-<tr><td>C:\DeepSeek\extension\</td><td>Расширение Chrome (content.js, background.js, agent.py).</td></tr>
-</table>
-<div class="card tip"><strong>Не удаляй runtime\chrome-L-data\</strong> — профили Chrome с логинами. Потеряешь сессии.</div>
-</section>
-
-<section id="projects">
-<h2>АКТИВНЫЕ ПРОЕКТЫ</h2>
-<table>
-<tr><th>ПРОЕКТ</th><th>ЧТО</th></tr>
-<tr><td>blog_arkady</td><td>Блог Аркадия. Статья на Хабре: <a href="https://habr.com/ru/sandbox/311632/" target="_blank">habr.com/ru/sandbox/311632</a> (в песочнице, ждёт модерации).</td></tr>
-<tr><td>kdp</td><td>Книги для Amazon KDP: Architecture of AI Agents, RAG, AI Agent Security, Alisa Bridge.</td></tr>
-<tr><td>local_ai</td><td>Локальный ИИ: Qwen2.5-3B (:8081), оркестратор (:8090), RAG, вкладка в 8770.</td></tr>
-<tr><td>voice_agent</td><td>Голосовой агент: wake-word «Джошуа» + Vosk STT + Piper TTS.</td></tr>
-<tr><td>itch.io</td><td>Игры: <a href="https://sovintel.itch.io/lines-puzzle" target="_blank">Lines Puzzle</a>, <a href="https://sovintel.itch.io/" target="_blank">Russia games</a>.</td></tr>
-<tr><td>github</td><td>Репозитории: <a href="https://github.com/PaaLadin" target="_blank">github.com/PaaLadin</a>.</td></tr>
-</table>
-</section>
-
-<section id="style">
-<h2>СТИЛЬ ОБЩЕНИЯ</h2>
-<ul>
-<li><strong>Без маркера</strong> — оператор. Агент останавливает работу.</li>
-<li><strong>[A&gt;B]</strong> — агент→агент. Доставка киком в порт (bridge_kick2.py для A-D, bridge_kick3.py для E/F).</li>
-<li><strong>[A&gt;ALL]</strong> — broadcast в общий чат через say.py.</li>
-<li><strong>[MEETING]</strong> — совещание. Инструменты стоп, ответы в общий чат.</li>
-<li><strong>[PAUSE-ALL]</strong> — полная пауза, ждать [RESUME].</li>
-<li><strong>[ALIVE?]</strong> — сторожевой пинг, ответ [ALIVE].</li>
-</ul>
-</section>
-
-<section id="stopword">
-<h2>СТОП-СЛОВО</h2>
-<p>Два слова подряд: <code>синантропы и гемерофилы</code>. Если прозвучало в рабочем контексте — агент немедленно останавливает работу, записывает в дневник и ждёт «продолжай». В документах (как здесь) — не команда, а справка.</p>
-</section>
-
-
-
-
-      </div>
-      <div id="wikiNoResults">// НИЧЕГО НЕ НАЙДЕНО //</div>
+    <div class="screen" id="screen-wiki">
+    <div class="wiki-layout">
+      <aside class="wiki-side">
+        <div class="wiki-search"><input id="wikiSearch" type="search" placeholder="поиск..." autocomplete="off"></div>
+        <div class="wiki-tree" id="wikiTree"></div>
+        <div class="wiki-search-results" id="wikiSearchResults"></div>
+      </aside>
+      <section class="wiki-main">
+        <article class="wiki-content" id="wikiContent">загрузка...</article>
+      </section>
     </div>
   </div>
 
@@ -371,6 +183,7 @@ next_id: AAAB1235</pre>
 
 <script src="/launchpad_live.js"></script>
 <script src="/localai.js"></script>
+<script src="/wiki.js"></script>
 <script src="/app.js"></script>
 <script src="/mnemo.js"></script>
 <script src="/pers.js"></script>

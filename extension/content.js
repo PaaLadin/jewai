@@ -199,6 +199,13 @@ async function checkUserBack() {
   if (!typed) { voiceStopSent = false; return; }
   if (voiceStopSent) return;
   voiceStopSent = true;
+  // 10C BUG-019: не шлём notify-stop, если voice не активен.
+  // Раньше любой ввод оператора дёргал /notify-stop -> agent создавал
+  // runtime/notify.stop -> в панели тост "Voice stop sent", файл-мусор.
+  try {
+    const st = await chrome.storage.local.get({voiceActive: false});
+    if (!st.voiceActive) return;
+  } catch (e) { return; }
   console.warn("[bridge] user typed, sending voice-stop");
   try { await sendBg({ type: "notify-stop" }); } catch (e) {}
 }

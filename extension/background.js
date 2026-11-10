@@ -265,6 +265,10 @@ chrome.runtime.onMessage.addListener((msg, sender, respond) => {
 
     if (msg.type === "notify-stop") {
       const s = await get();
+      // 10C BUG-019: если voice не активен - нечего стопать, тихо выходим.
+      if (!s.voiceActive) {
+        return respond({ ok: true, skipped: true, reason: "voice not active" });
+      }
       // 9C fix v2: ВСЕГДА отправляем notify-stop в agent.
       // agent сам проверит notify.stop и остановит notify_me.py.
       // fire-and-forget: onMessage не блокируется, таймаут 5 минут.

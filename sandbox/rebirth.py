@@ -56,10 +56,30 @@ def check_ready(ch, table):
                 if j.get("ch") == ch and j.get("level") in ("warn", "critical"):
                     last_rem = max(last_rem, j.get("ts", 0))
 
+    # 10C BUG-018: PROMPT ищется в 4 местах, а не только emergency/.
+    # Раньше: чеклист видел только emergency/PROMPT_<s>.md -> оператор клал
+    # в logs/<CH>/, чеклист возвращал MISSING, rebirth_master падал.
+    # Фикс: приоритет как в load_prompt (v5 Rebirth/cycle.py):
+    #   1. logs/<CH>/PROMPT_<s>.md (v5 канон)
+    #   2. emergency/PROMPT_<s>.md (DeepSeek канон)
+    #   3. logs/rebirth/PROMPT_<s>.md
+    #   4. RAG/procedures/PROMPT_<s>.md
+    def _find_prompt(ns):
+        fn = "PROMPT_%s.md" % ns
+        cands = [
+            os.path.join(log_dir, fn),
+            os.path.join(ROOT, "emergency", fn),
+            os.path.join(ROOT, "logs", "rebirth", fn),
+            os.path.join(ROOT, "RAG", "procedures", fn),
+        ]
+        for p in cands:
+            if os.path.exists(p):
+                return p
+        return cands[0]
     files = {
         "TODO.md": os.path.join(log_dir, "TODO.md"),
         "HANDOVER.md": os.path.join(log_dir, "HANDOVER.md"),
-        "PROMPT_%s.md" % ns: os.path.join(ROOT, "emergency", "PROMPT_%s.md" % ns),
+        "PROMPT_%s.md" % ns: _find_prompt(ns),
         "SESSION_STATE.md": os.path.join(ROOT, "SESSION_STATE.md"),
     }
     for name, path in files.items():

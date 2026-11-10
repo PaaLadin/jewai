@@ -375,7 +375,16 @@ def run(ch, live=False, table=None):
     print("  %s -> %s (%s)" % (info["current_series"], info["next_series"], info["name"]))
 
     act = fill_placeholders(ch, table)
-    prompt = os.path.join(ROOT, "emergency", "PROMPT_%s.md" % info["next_series"])
+    # 10C BUG-018b: multi-path к PROMPT (было только emergency/, как в rebirth.py)
+    _ns = info["next_series"]
+    _fn = "PROMPT_%s.md" % _ns
+    _cands = [
+        os.path.join(ROOT, "logs", ch, _fn),
+        os.path.join(ROOT, "emergency", _fn),
+        os.path.join(ROOT, "logs", "rebirth", _fn),
+        os.path.join(ROOT, "RAG", "procedures", _fn),
+    ]
+    prompt = next((p for p in _cands if os.path.exists(p)), _cands[0])
     print("  activation: %s" % act)
     print("  prompt: %s" % prompt)
     if not os.path.exists(prompt):
